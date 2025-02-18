@@ -1,0 +1,34 @@
+{
+  "name": "discord-bot-website",
+  "description": "The website to control and monitor the discord bot.",
+  "author": "Eduard Smet",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --fix",
+    "lint:check": "eslint .",
+    "format": "prettier --write '**/*{.md,.yaml,.json,.js,.ts}'",
+    "format:check": "prettier --check '**/*{.md,.yaml,.json,.js,.ts}'",
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "test": "tsc --noEmit && npm run lint:check && npm run format:check && npm run build",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "nuxt": "^3.15.4",
+    "vue": "latest",
+    "vue-router": "latest"
+  },
+  "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
+    "@nuxt/eslint": "^1.1.0",
+    "@nuxtjs/tailwindcss": "^6.13.1",
+    "eslint": "^9.20.1",
+    "husky": "^9.1.7",
+    "prettier": "^3.5.1",
+    "typescript": "^5.7.3"
+  }
+}
