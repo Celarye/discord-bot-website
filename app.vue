@@ -31,8 +31,8 @@ const openFile = async (event: Event) => {
       const yamlData = yaml.load(e.target?.result as string);
       fileContent.value = yamlData
       plugins.value = yamlData.plugins
-    } catch (error) {
-      fileContent.value = 'Invalid YAML file';
+    } catch (error: Error) {
+      fileContent.value = 'Invalid YAML file' + error.message;
       plugins.value = [];
     }
   };
@@ -72,17 +72,17 @@ const saveFile = () => {
 <template>
   <div class="p-4 flex">
     <div class="w-2/3">
-      <input type="file" @change="openFile" accept=".yaml, .yml" class="mb-4" />
+      <input type="file" accept=".yaml, .yml" class="mb-4" @change="openFile" >
       <pre v-if="fileContent" class="p-2 bg-gray-100 border rounded">{{ fileContent }}</pre>
 
       <div v-if="plugins.length" class="mt-4">
-        <button @click="saveFile" class="p-1 bg-blue-600 text-white rounded">Save</button>
+        <button class="p-1 bg-blue-600 text-white rounded" @click="saveFile">Save</button>
         <h3 class="font-bold">Plugins</h3>
         <div v-for="plugin in plugins" :key="plugin.name" class="p-2 mt-2 bg-blue-100 border rounded flex justify-between">
           <div>
             <p>{{ plugin.name }}</p>Version: {{ plugin.version }}
           </div>
-          <button @click="deletePlugin(plugin.name)" class="p-1 bg-red-500 text-white rounded">Delete</button>
+          <button class="p-1 bg-red-500 text-white rounded" @click="deletePlugin(plugin.name)">Delete</button>
         </div>
 
       </div>
@@ -98,7 +98,7 @@ const saveFile = () => {
           </option>
         </select>
         <p>{{ plugin.description}}</p>
-        <button @click="addPlugin(plugin.name)" class="p-1 bg-green-500 text-white rounded">Add</button>
+        <button class="p-1 bg-green-500 text-white rounded" @click="addPlugin(plugin.name)">Add</button>
       </div>
     </div>
   </div>
