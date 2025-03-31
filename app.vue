@@ -2,12 +2,13 @@
 import { ref } from 'vue';
 import yaml from 'js-yaml';
 import {fetchAvailable} from "assets/modlules/api";
+import type {AvailablePlugins, Plugintype} from "assets/types/typelist";
 
 const fileContent = ref<string | null>(null);
-const plugins = ref<{ name: string; version: string }[]>([]);
+const plugins = ref<Plugintype[]>([]);
 
 
-const availablePlugins = ref<{ name: string; versions: string[] }[]>();
+const availablePlugins = ref<AvailablePlugins[]>();
 
 
 fetchAvailable().then(e => availablePlugins.value = e.plugins);
@@ -29,11 +30,7 @@ const openFile = async (event: Event) => {
     try {
       const yamlData = yaml.load(e.target?.result as string);
       fileContent.value = yamlData
-      if (yamlData && typeof yamlData === 'object' && 'plugins' in yamlData) {
-        plugins.value = yamlData.plugins;
-      } else {
-        plugins.value = [];
-      }
+      plugins.value = yamlData.plugins
     } catch (error) {
       fileContent.value = 'Invalid YAML file';
       plugins.value = [];
@@ -49,7 +46,7 @@ const deletePlugin = (pluginName: string) => {
 };
 
 const addPlugin = (pluginName: string) => {
-  const version = selectedVersions.value[pluginName] || availablePlugins.value.find(p => p.name === pluginName)?.versions[0];
+  const version = selectedVersions.value[pluginName] || availablePlugins.value.find(p => p.name === pluginName)?.versions[availablePlugins.value.find(p => p.name === pluginName).versions.length-1];
   if (!version) return;
 
   const existingPluginIndex = plugins.value.findIndex(p => p.name === pluginName);
@@ -77,8 +74,9 @@ const saveFile = () => {
     <div class="w-2/3">
       <input type="file" @change="openFile" accept=".yaml, .yml" class="mb-4" />
       <pre v-if="fileContent" class="p-2 bg-gray-100 border rounded">{{ fileContent }}</pre>
-      <button @click="saveFile" class="p-1 bg-blue-600 text-white rounded">Save</button>
+
       <div v-if="plugins.length" class="mt-4">
+        <button @click="saveFile" class="p-1 bg-blue-600 text-white rounded">Save</button>
         <h3 class="font-bold">Plugins</h3>
         <div v-for="plugin in plugins" :key="plugin.name" class="p-2 mt-2 bg-blue-100 border rounded flex justify-between">
           <div>
@@ -99,6 +97,7 @@ const saveFile = () => {
             {{ version }}
           </option>
         </select>
+        <p>{{ plugin.description}}</p>
         <button @click="addPlugin(plugin.name)" class="p-1 bg-green-500 text-white rounded">Add</button>
       </div>
     </div>

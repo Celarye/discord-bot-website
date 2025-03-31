@@ -1,24 +1,32 @@
 plugins:
   - name: "WelcomePlugin"
     versions: ["1.0.0", "1.1.0", "1.2.0"]
+    description: "WelcomePlugin beschrijving"
 
   - name: "MusicPlugin"
     versions: ["1.2.3", "1.3.0", "1.4.0"]
+    description: "MusicPlugin beschrijving"
 
   - name: "ModerationPlugin"
     versions: ["2.0.0", "2.1.0", "2.2.0"]
+    description: "ModerationPlugin beschrijving"
 
   - name: "TriviaPlugin"
     versions: ["1.0.0", "1.1.0", "1.2.0"]
+    description: "TriviaPlugin beschrijving"
 
   - name: "WeatherPlugin"
     versions: ["1.0.0", "1.1.0", "1.2.0"]
+    description: "WeatherPlugin beschrijving"
 
   - name: "PollPlugin"
     versions: ["1.0.0", "1.1.0", "1.2.0"]
+    description: "PollPlugin beschrijving"
 
   - name: "ReminderPlugin"
     versions: ["1.0.0", "1.1.0", "1.2.0"]
+    description: "ReminderPlugin beschrijving"
 
   - name: "GamePlugin"
     versions: ["1.0.0", "1.1.0", "1.2.0"]
+    description: "GamePlugin beschrijving"

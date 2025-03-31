@@ -4,7 +4,7 @@ export async function fetchAvailable() {
     try {
         const response = await fetch('/plugins/plugins.yaml');
         if (!response.ok) {
-            throw new Error('available YAML cannot by loaded');
+            throw new Error('available plugins YAML cannot by loaded');
         }
 
         const yamlText = await response.text();
