@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PluginConfig from '~/components/config/PluginConfig.vue';
+import PluginConfig from "~/components/config/PluginConfig.vue";
 </script>
 
 <template>

@@ -16,5 +16,5 @@
 </template>
 
 <script setup lang="ts">
-import StatusIndicator from './StatusIndicator.vue';
+import StatusIndicator from "./StatusIndicator.vue";
 </script>
