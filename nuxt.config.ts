@@ -11,6 +11,7 @@ export default defineNuxtConfig({
       tailwindcss(),
     ],
   },
+  pages: true,
   shadcn: {
     /** 
      * Prefix for all the imported component
