@@ -2,22 +2,22 @@
 import {
   NavigationMenu,
   NavigationMenuContent,
-  NavigationMenuIndicator,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-  NavigationMenuViewport,
-} from '@/components/ui/navigation-menu'
+} from "@/components/ui/navigation-menu";
 </script>
 
 <template>
   <NavigationMenu>
     <NavigationMenuList>
       <NavigationMenuItem>
-        <NavigationMenuTrigger>Item One</NavigationMenuTrigger>
+        <NavigationMenuTrigger>Navigate</NavigationMenuTrigger>
         <NavigationMenuContent>
-          <NavigationMenuLink>Link</NavigationMenuLink>
+          <NuxtLink to="/"><NavigationMenuLink>Dashboard</NavigationMenuLink></NuxtLink>
+          <NuxtLink to="/configuration"><NavigationMenuLink>Configuration</NavigationMenuLink></NuxtLink>
+          <NuxtLink to="/logs"><NavigationMenuLink>Logs</NavigationMenuLink></NuxtLink>
         </NavigationMenuContent>
       </NavigationMenuItem>
     </NavigationMenuList>
