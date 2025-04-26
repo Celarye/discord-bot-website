@@ -44,7 +44,7 @@ import ThemeToggle from "../atoms/ThemeToggle.vue";
       <DropdownMenuLabel>Theme</DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuItem>
-        <ThemeToggle />
+        <ThemeToggle/>
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>

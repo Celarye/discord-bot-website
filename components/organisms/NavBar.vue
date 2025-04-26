@@ -6,7 +6,7 @@ import Hamburger from "../molecules/Hamburger.vue";
 </script>
 
 <template>
-  <nav class="backdrop-blur-lg outline fixed top-0 w-full">
+  <nav class="backdrop-blur bg-background/95 outline fixed top-0 w-full supports-[backdrop-filter]:bg-background/60">
     <div
       class="flex flex-row items-center align-middle justify-between p-3 h-15 container m-auto"
     >

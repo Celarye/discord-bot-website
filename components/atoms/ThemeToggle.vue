@@ -1,10 +1,18 @@
 <script setup lang="ts">
+import { Icon } from "@iconify/vue";
+
 const colorMode = useColorMode();
+
 const toggleColorMode = () => {
-  if (colorMode.preference === "system") {
-    colorMode.preference = "light";
-  } else {
-    colorMode.preference = colorMode.preference === "light" ? "dark" : "light";
+  switch (colorMode.preference) {
+    case "system":
+      colorMode.preference = colorMode.value === "dark" ? "light" : "dark";
+      break;
+    case "light":
+      colorMode.preference = "dark";
+      break;
+    case "dark":
+      colorMode.preference = "light";
   }
 };
 
@@ -16,18 +24,14 @@ const nextColorModeLabel = computed(() => {
   }
 });
 
-const nextColorModeIcon = computed(() => {
-  if (colorMode.preference === 'dark') {
-    return 'radix-icons:sun';
-  } else {
-    return 'radix-icons:moon';
-  }
-});
+const nextColorModeIcon = computed(() =>
+  colorMode.preference === "dark" ? "radix-icons:sun" : "radix-icons:moon",
+);
 </script>
 
 <template>
-    <ThemeToggle @click="toggleColorMode">
-        <Icon :icon="nextColorModeIcon" />
-        {{ nextColorModeLabel }}
-    </ThemeToggle>
+  <span @click="toggleColorMode" class="flex flex-row gap-2 items-center">
+    <Icon :icon="nextColorModeIcon" />
+    {{ nextColorModeLabel }}
+  </span>
 </template>
