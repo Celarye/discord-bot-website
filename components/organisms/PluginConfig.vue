@@ -2,7 +2,7 @@
 import { fetchAvailable } from "~/assets/modules/api";
 import type { AvailablePlugins, Plugintype } from "~/assets/types/typelist";
 import PluginAvailable from "~/components/organisms/PluginAvailable.vue";
-import PluginList from "~/components/organisms/PluginList.vue";
+import PluginList from "~/components/organisms/PluginInstalled.vue";
 import { onMounted, ref, watch } from "vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
