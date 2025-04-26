@@ -4,16 +4,15 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Settings } from "lucide-vue-next";
 
-const props = defineProps<{
+defineProps<{
   name: string;
   description: string;
   selectedVersion: string;
   versions: string[];
 }>();
 
-const emit = defineEmits<{
-  (e: "settings", name: string): void;
-  (e: "add", name: string): void;
+defineEmits<{
+  (e: "settings" |"add", name: string): void;
   (e: "update-version", name: string, version: string): void;
 }>();
 </script>

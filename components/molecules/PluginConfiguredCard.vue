@@ -10,7 +10,7 @@ defineProps<{
 }>();
 
 defineEmits<{
-  (e: "settings", name: string): void;
+  (e: "settings" | "delete", name: string): void;
 }>();
 </script>
 

@@ -31,8 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:open", value: boolean): void;
   (e: "update:selectedVersion", value: string): void;
-  (e: "save"): void;
-  (e: "add"): void;
+  (e: "save" | "add"): void;
 }>();
 
 const localSelectedVersion = ref(props.selectedVersion);

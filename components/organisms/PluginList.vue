@@ -32,7 +32,7 @@ const emit = defineEmits<{
 const selectedPluginName = ref<string | null>(null);
 const isDialogOpen = ref(false);
 const selectedVersion = ref("");
-const pluginsYamlData = ref<any>(null);
+const pluginsYamlData = ref<never>(null);
 const isLoading = ref(false);
 
 const fetchPluginsYaml = async () => {
@@ -52,7 +52,7 @@ const getAvailableVersions = (pluginName: string) => {
   if (!pluginsYamlData.value || !pluginsYamlData.value.plugins) return [];
 
   const pluginInfo = pluginsYamlData.value.plugins.find(
-    (p: any) => p.name === pluginName,
+    (p: never) => p.name === pluginName,
   );
 
   if (pluginInfo && pluginInfo.versions) {
