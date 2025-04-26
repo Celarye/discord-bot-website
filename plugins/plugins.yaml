@@ -1,9 +1,7 @@
 plugins:
   - name: WelcomePlugin
     version: 1.1.0
-  - name: MusicPlugin
-    version: 1.2.3
-  - name: ModerationPlugin
-    version: 2.0.0
   - name: TriviaPlugin
+    version: 1.2.0
+  - name: WeatherPlugin
     version: 1.2.0

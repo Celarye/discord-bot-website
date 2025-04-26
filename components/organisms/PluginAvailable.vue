@@ -1,20 +1,9 @@
 <script setup lang="ts">
 import type { AvailablePlugins } from "~/assets/types/typelist";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings } from "lucide-vue-next";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ref } from "vue";
+import PluginAvailableCard from "../molecules/PluginAvailableCard.vue";
+import PluginSettingsDialog from "../molecules/PluginSettingsDialog.vue";
+import PluginListContainer from "../molecules/PluginList.vue";
 
 const props = defineProps<{
   availablePlugins: AvailablePlugins[];
@@ -28,133 +17,80 @@ const emit = defineEmits<{
 
 const selectedPluginName = ref<string | null>(null);
 const isDialogOpen = ref(false);
+const dialogSelectedVersion = ref('');
 
 const openSettings = (pluginName: string) => {
   selectedPluginName.value = pluginName;
+  // Initialize with current selected version
+  dialogSelectedVersion.value = props.selectedVersions[pluginName] ||
+    (props.availablePlugins.find(p => p.name === pluginName)?.versions?.[0] || '');
   isDialogOpen.value = true;
-};
-
-const closeDialog = () => {
-  isDialogOpen.value = false;
-  selectedPluginName.value = null;
-};
-
-const addPlugin = (pluginName: string) => {
-  emit('addPlugin', pluginName);
-  closeDialog();
 };
 
 const getSelectedPlugin = () => {
   if (!selectedPluginName.value) return null;
   return props.availablePlugins.find(p => p.name === selectedPluginName.value) || null;
 };
+
+const getVersionsForSelectedPlugin = () => {
+  const plugin = getSelectedPlugin();
+  return plugin?.versions || [];
+};
+
+const addPlugin = (pluginName: string) => {
+  console.log('Adding plugin:', pluginName);
+  emit('addPlugin', pluginName);
+  isDialogOpen.value = false;
+};
+
+const handleVersionUpdate = (name: string, version: string) => {
+  console.log('Updating version:', name, version);
+  emit('updateVersion', name, version);
+};
+
+const handleDialogVersionUpdate = (version: string) => {
+  dialogSelectedVersion.value = version;
+  if (selectedPluginName.value) {
+    handleVersionUpdate(selectedPluginName.value, version);
+  }
+};
+
+const handleDialogAdd = () => {
+  if (selectedPluginName.value) {
+    addPlugin(selectedPluginName.value);
+  }
+};
 </script>
 
 <template>
-  <div>
-    <h3 class="text-lg font-semibold mb-3">Available Plugins</h3>
+  <PluginListContainer
+    title="Available Plugins"
+    :is-empty="availablePlugins.length === 0"
+    empty-message="No plugins available at the moment"
+  >
     <div class="space-y-3">
-      <Card
+      <PluginAvailableCard
         v-for="plugin in availablePlugins"
         :key="plugin.name"
-      >
-        <CardHeader class="pb-2">
-          <CardTitle class="text-md">{{ plugin.name }}</CardTitle>
-        </CardHeader>
-        <CardContent class="pb-2">
-          <div class="mb-2">
-            <label class="text-sm mb-1 block">Version</label>
-            <Select
-              :value="selectedVersions[plugin.name]"
-              @update:model-value="$emit('updateVersion', plugin.name, $event)"
-            >
-              <SelectTrigger class="w-full">
-                <SelectValue placeholder="Select version" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="version in plugin.versions"
-                  :key="version"
-                  :value="version"
-                >
-                  {{ version }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <p class="text-sm text-muted-foreground">{{ plugin.description }}</p>
-        </CardContent>
-        <CardFooter class="flex gap-2">
-          <Button
-            variant="secondary"
-            class="flex-1"
-            @click="$emit('addPlugin', plugin.name)"
-          >
-            Add
-          </Button>
-
-          <Button
-            variant="outline"
-            size="icon"
-            @click="openSettings(plugin.name)"
-          >
-            <Settings class="h-4 w-4" />
-          </Button>
-        </CardFooter>
-      </Card>
+        :name="plugin.name"
+        :description="plugin.description || ''"
+        :selected-version="selectedVersions[plugin.name] || (plugin.versions && plugin.versions[0] || '')"
+        :versions="plugin.versions || []"
+        @settings="openSettings"
+        @add="addPlugin"
+        @update-version="handleVersionUpdate"
+      />
     </div>
-  </div>
+  </PluginListContainer>
 
-  <!-- Separated dialog from trigger for better control -->
-  <Dialog :open="isDialogOpen" @update:open="isDialogOpen = $event">
-    <DialogContent class="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>Plugin Configuration for {{selectedPluginName}}</DialogTitle>
-        <DialogDescription v-if="selectedPluginName">
-          Configure and add plugin
-        </DialogDescription>
-      </DialogHeader>
-
-      <form v-if="selectedPluginName" @submit.prevent="addPlugin(selectedPluginName)" class="grid gap-4 py-4">
-
-        <div class="grid grid-cols-4 items-center gap-4">
-          <Label for="plugin-version" class="text-right">Version</Label>
-          <div class="col-span-3">
-            <Select
-              :value="selectedVersions[selectedPluginName]"
-              @update:model-value="$emit('updateVersion', selectedPluginName, $event)"
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select version" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="version in getSelectedPlugin()?.versions || []"
-                  :key="version"
-                  :value="version"
-                >
-                  {{ version }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-4 items-center gap-4">
-          <Label for="setting1" class="text-right">Setting 1</Label>
-          <Input id="setting1" placeholder="Setting 1 value" class="col-span-3" />
-        </div>
-
-        <div class="grid grid-cols-4 items-center gap-4">
-          <Label for="setting2" class="text-right">Setting 2</Label>
-          <Input id="setting2" placeholder="Setting 2 value" class="col-span-3" />
-        </div>
-
-        <DialogFooter>
-          <Button type="button" @click="closeDialog" variant="outline">Cancel</Button>
-          <Button type="submit">Add Plugin</Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  </Dialog>
+  <PluginSettingsDialog
+    :open="isDialogOpen"
+    :plugin-name="selectedPluginName"
+    :versions="getVersionsForSelectedPlugin()"
+    :selected-version="dialogSelectedVersion"
+    mode="add"
+    @update:open="isDialogOpen = $event"
+    @update:selected-version="handleDialogVersionUpdate"
+    @add="handleDialogAdd"
+  />
 </template>
