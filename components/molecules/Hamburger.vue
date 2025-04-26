@@ -29,7 +29,6 @@ import ThemeToggle from "../atoms/ThemeToggle.vue";
       <DropdownMenuItem>
         <NuxtLink to="/logs">Logs</NuxtLink>
       </DropdownMenuItem>
-      <!--  -->
       <DropdownMenuSeparator />
       <DropdownMenuLabel>My Account</DropdownMenuLabel>
       <DropdownMenuSeparator />
@@ -39,7 +38,6 @@ import ThemeToggle from "../atoms/ThemeToggle.vue";
       <NuxtLink to="/settings">
         <DropdownMenuItem>Settings</DropdownMenuItem>
       </NuxtLink>
-      <!--  -->
       <DropdownMenuSeparator />
       <DropdownMenuLabel>Theme</DropdownMenuLabel>
       <DropdownMenuSeparator />

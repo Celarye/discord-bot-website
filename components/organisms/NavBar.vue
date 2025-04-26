@@ -10,7 +10,7 @@ import Hamburger from "../molecules/Hamburger.vue";
     <div
       class="flex flex-row items-center align-middle justify-between p-3 h-15 container m-auto"
     >
-      <h1 class="text-xl align-baseline">Discord&nbsp;Bot</h1>
+      <h1 class="text-xl align-middle">Discord&nbsp;Bot</h1>
       <section class="flex flex-row gap-4">
         <Command />
         <div class="md:hidden"><Hamburger /></div>
