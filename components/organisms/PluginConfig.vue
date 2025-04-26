@@ -22,11 +22,9 @@ const error = ref<string | null>(null);
 
 onMounted(async () => {
   try {
-    // First fetch available plugins
     const data = await fetchAvailable();
     availablePlugins.value = data.plugins || [];
 
-    // Set default selected versions
     availablePlugins.value.forEach((plugin) => {
       if (plugin.versions && plugin.versions.length > 0) {
         selectedVersions.value[plugin.name] =
@@ -34,7 +32,6 @@ onMounted(async () => {
       }
     });
 
-    // Then try to load existing plugins.yaml
     await loadExistingConfig();
   } catch (err) {
     console.error("Failed to initialize plugin manager:", err);
@@ -45,7 +42,6 @@ onMounted(async () => {
   }
 });
 
-// Watch for changes in plugins and update YAML
 watch(
   plugins,
   () => {
@@ -56,7 +52,7 @@ watch(
 
 async function loadExistingConfig() {
   try {
-    // Try to fetch the existing plugins.yaml from the server
+
     const response = await fetch("/api/plugins/config");
 
     if (!response.ok) {
@@ -77,7 +73,6 @@ async function loadExistingConfig() {
     }
   } catch (err) {
     console.warn("Could not load existing configuration:", err);
-    // when no config exists
   }
 }
 

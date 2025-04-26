@@ -11,28 +11,43 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ref } from "vue";
 
-defineProps<{
+const props = defineProps<{
   availablePlugins: AvailablePlugins[];
   selectedVersions: { [key: string]: string };
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "addPlugin", pluginName: string): void;
   (e: "updateVersion", pluginName: string, version: string): void;
 }>();
 
-const openPluginSettings = ref<string | null>(null);
+const selectedPluginName = ref<string | null>(null);
+const isDialogOpen = ref(false);
 
 const openSettings = (pluginName: string) => {
-  openPluginSettings.value = pluginName;
+  selectedPluginName.value = pluginName;
+  isDialogOpen.value = true;
 };
 
+const closeDialog = () => {
+  isDialogOpen.value = false;
+  selectedPluginName.value = null;
+};
+
+const addPlugin = (pluginName: string) => {
+  emit('addPlugin', pluginName);
+  closeDialog();
+};
+
+const getSelectedPlugin = () => {
+  if (!selectedPluginName.value) return null;
+  return props.availablePlugins.find(p => p.name === selectedPluginName.value) || null;
+};
 </script>
 
 <template>
@@ -78,65 +93,68 @@ const openSettings = (pluginName: string) => {
             Add
           </Button>
 
-          <Dialog>
-            <DialogTrigger>
-              <Button
-                variant="outline"
-                size="icon"
-                @click="openSettings(plugin.name)"
-              >
-                <Settings class="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent class="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Plugin Configuration</DialogTitle>
-                <DialogDescription>
-                  Configure and add the {{ plugin.name }} plugin
-                </DialogDescription>
-              </DialogHeader>
-              <div class="grid gap-4 py-4">
-                <div class="grid grid-cols-4 items-center gap-4">
-                  <Label for="plugin-name" class="text-right">Name</Label>
-                  <Input id="plugin-name" :value="plugin.name" class="col-span-3" disabled />
-                </div>
-                <div class="grid grid-cols-4 items-center gap-4">
-                  <Label for="plugin-version" class="text-right">Version</Label>
-                  <Select
-                    :value="selectedVersions[plugin.name]"
-                    class="col-span-3"
-                    @update:model-value="$emit('updateVersion', plugin.name, $event)"
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select version" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        v-for="version in plugin.versions"
-                        :key="version"
-                        :value="version"
-                      >
-                        {{ version }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div class="grid grid-cols-4 items-center gap-4">
-                  <Label for="setting1" class="text-right">Setting 1</Label>
-                  <Input id="setting1" placeholder="Setting 1 value" class="col-span-3" />
-                </div>
-                <div class="grid grid-cols-4 items-center gap-4">
-                  <Label for="setting2" class="text-right">Setting 2</Label>
-                  <Input id="setting2" placeholder="Setting 2 value" class="col-span-3" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button @click="$emit('addPlugin', plugin.name)">Add Plugin</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button
+            variant="outline"
+            size="icon"
+            @click="openSettings(plugin.name)"
+          >
+            <Settings class="h-4 w-4" />
+          </Button>
         </CardFooter>
       </Card>
     </div>
   </div>
+
+  <!-- Separated dialog from trigger for better control -->
+  <Dialog :open="isDialogOpen" @update:open="isDialogOpen = $event">
+    <DialogContent class="sm:max-w-[425px]">
+      <DialogHeader>
+        <DialogTitle>Plugin Configuration for {{selectedPluginName}}</DialogTitle>
+        <DialogDescription v-if="selectedPluginName">
+          Configure and add plugin
+        </DialogDescription>
+      </DialogHeader>
+
+      <form v-if="selectedPluginName" @submit.prevent="addPlugin(selectedPluginName)" class="grid gap-4 py-4">
+
+        <div class="grid grid-cols-4 items-center gap-4">
+          <Label for="plugin-version" class="text-right">Version</Label>
+          <div class="col-span-3">
+            <Select
+              :value="selectedVersions[selectedPluginName]"
+              @update:model-value="$emit('updateVersion', selectedPluginName, $event)"
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select version" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="version in getSelectedPlugin()?.versions || []"
+                  :key="version"
+                  :value="version"
+                >
+                  {{ version }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-4 items-center gap-4">
+          <Label for="setting1" class="text-right">Setting 1</Label>
+          <Input id="setting1" placeholder="Setting 1 value" class="col-span-3" />
+        </div>
+
+        <div class="grid grid-cols-4 items-center gap-4">
+          <Label for="setting2" class="text-right">Setting 2</Label>
+          <Input id="setting2" placeholder="Setting 2 value" class="col-span-3" />
+        </div>
+
+        <DialogFooter>
+          <Button type="button" @click="closeDialog" variant="outline">Cancel</Button>
+          <Button type="submit">Add Plugin</Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>
 </template>
