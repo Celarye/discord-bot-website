@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
+import { Icon } from "@iconify/vue";
 import ThemeToggle from "../atoms/ThemeToggle.vue";
 </script>
 
@@ -15,10 +14,23 @@ import ThemeToggle from "../atoms/ThemeToggle.vue";
   <DropdownMenu>
     <DropdownMenuTrigger>
       <Button variant="outline">
-        <Icon icon="radix-icons:gear" />
+        <Icon icon="radix-icons:hamburger-menu" />
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent>
+      <DropdownMenuLabel>Navigation</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem>
+        <NuxtLink to="/">Dashboard</NuxtLink>
+      </DropdownMenuItem>
+      <DropdownMenuItem>
+        <NuxtLink to="/configuration">Configuration</NuxtLink>
+      </DropdownMenuItem>
+      <DropdownMenuItem>
+        <NuxtLink to="/logs">Logs</NuxtLink>
+      </DropdownMenuItem>
+      <!--  -->
+      <DropdownMenuSeparator />
       <DropdownMenuLabel>My Account</DropdownMenuLabel>
       <DropdownMenuSeparator />
       <NuxtLink to="/profile"
@@ -27,6 +39,7 @@ import ThemeToggle from "../atoms/ThemeToggle.vue";
       <NuxtLink to="/settings">
         <DropdownMenuItem>Settings</DropdownMenuItem>
       </NuxtLink>
+      <!--  -->
       <DropdownMenuSeparator />
       <DropdownMenuLabel>Theme</DropdownMenuLabel>
       <DropdownMenuSeparator />

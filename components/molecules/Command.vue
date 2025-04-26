@@ -8,6 +8,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { Icon } from "@iconify/vue";
 import { useMagicKeys } from "@vueuse/core";
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -45,8 +46,11 @@ function handleOpenChange() {
 <template>
   <div>
     <Button class="p-2" variant="outline" @click="handleOpenChange">
-      <div class="text-sm text-muted-foreground flex flex-row items-center gap-4">
-        <p>Quick Search...</p>
+      <div
+        class="text-sm text-muted-foreground flex flex-row items-center gap-2 sm:gap-4"
+      >
+        <Icon icon="radix-icons:magnifying-glass" class="sm:hidden"/>
+        <p class="hidden sm:block">Quick Search...</p>
         <kbd
           class="pointer-events-none px-1 flex flex-row gap-1 items-center select-none rounded border bg-muted font-mono font-medium text-muted-foreground opacity-100"
           ><span class="text-xs">{{ shortcutKey }}</span
