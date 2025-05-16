@@ -4,5 +4,5 @@ import NavBar from "~/components/organisms/NavBar.vue";
 
 <template>
   <NavBar />
-  <main><NuxtPage /></main>
+  <main class="mt-15"><NuxtPage /></main>
 </template>
