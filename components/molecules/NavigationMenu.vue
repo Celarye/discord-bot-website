@@ -1,7 +1,25 @@
+<script setup lang="ts">
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
+</script>
+
 <template>
-  <div class="flex flex-row items-center gap-5 px-3 text-muted-foreground">
-    <NuxtLink to="/" class="text-lg align-middle">Dashboard</NuxtLink>
-    <NuxtLink to="/configuration" class="text-lg align-middle">Configuration</NuxtLink>
-    <NuxtLink to="/logs" class="text-lg align-middle">Logs</NuxtLink>
-  </div>
+  <NavigationMenu>
+    <NavigationMenuList>
+      <NavigationMenuItem>
+        <NavigationMenuTrigger>Navigate</NavigationMenuTrigger>
+        <NavigationMenuContent>
+          <NuxtLink to="/"><NavigationMenuLink>Dashboard</NavigationMenuLink></NuxtLink>
+          <NuxtLink to="/configuration"><NavigationMenuLink>Configuration</NavigationMenuLink></NuxtLink>
+          <NuxtLink to="/logs"><NavigationMenuLink>Logs</NavigationMenuLink></NuxtLink>
+        </NavigationMenuContent>
+      </NavigationMenuItem>
+    </NavigationMenuList>
+  </NavigationMenu>
 </template>
