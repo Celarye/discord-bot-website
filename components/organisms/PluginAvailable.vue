@@ -2,8 +2,8 @@
 import type { AvailablePlugins } from "~/assets/types/typelist";
 import { ref } from "vue";
 import PluginAvailableCard from "../molecules/PluginAvailableCard.vue";
-import PluginSettingsDialog from "../molecules/PluginSettingsDialog.vue";
 import PluginListContainer from "../molecules/PluginList.vue";
+import PluginSettingsDialog from "../molecules/PluginSettingsDialog.vue";
 
 const props = defineProps<{
   availablePlugins: AvailablePlugins[];
@@ -17,19 +17,24 @@ const emit = defineEmits<{
 
 const selectedPluginName = ref<string | null>(null);
 const isDialogOpen = ref(false);
-const dialogSelectedVersion = ref('');
+const dialogSelectedVersion = ref("");
 
 const openSettings = (pluginName: string) => {
   selectedPluginName.value = pluginName;
   // Initialize with current selected version
-  dialogSelectedVersion.value = props.selectedVersions[pluginName] ||
-    (props.availablePlugins.find(p => p.name === pluginName)?.versions?.[0] || '');
+  dialogSelectedVersion.value =
+    props.selectedVersions[pluginName] ||
+    props.availablePlugins.find((p) => p.name === pluginName)?.versions?.[0] ||
+    "";
   isDialogOpen.value = true;
 };
 
 const getSelectedPlugin = () => {
   if (!selectedPluginName.value) return null;
-  return props.availablePlugins.find(p => p.name === selectedPluginName.value) || null;
+  return (
+    props.availablePlugins.find((p) => p.name === selectedPluginName.value) ||
+    null
+  );
 };
 
 const getVersionsForSelectedPlugin = () => {
@@ -38,14 +43,14 @@ const getVersionsForSelectedPlugin = () => {
 };
 
 const addPlugin = (pluginName: string) => {
-  console.log('Adding plugin:', pluginName);
-  emit('addPlugin', pluginName);
+  console.log("Adding plugin:", pluginName);
+  emit("addPlugin", pluginName);
   isDialogOpen.value = false;
 };
 
 const handleVersionUpdate = (name: string, version: string) => {
-  console.log('Updating version:', name, version);
-  emit('updateVersion', name, version);
+  console.log("Updating version:", name, version);
+  emit("updateVersion", name, version);
 };
 
 const handleDialogVersionUpdate = (version: string) => {
@@ -74,7 +79,11 @@ const handleDialogAdd = () => {
         :key="plugin.name"
         :name="plugin.name"
         :description="plugin.description || ''"
-        :selected-version="selectedVersions[plugin.name] || (plugin.versions && plugin.versions[0] || '')"
+        :selected-version="
+          selectedVersions[plugin.name] ||
+          (plugin.versions && plugin.versions[0]) ||
+          ''
+        "
         :versions="plugin.versions || []"
         @settings="openSettings"
         @add="addPlugin"

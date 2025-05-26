@@ -1,15 +1,15 @@
 <script setup lang="ts">
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchAvailable } from "~/assets/modules/api";
 import type { AvailablePlugins, Plugintype } from "~/assets/types/typelist";
 import PluginAvailable from "~/components/organisms/PluginAvailable.vue";
 import PluginList from "~/components/organisms/PluginInstalled.vue";
-import { onMounted, ref, watch } from "vue";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-vue-next";
+import { onMounted, ref, watch } from "vue";
 
 const fileContent = ref<string | null>(null);
 const plugins = ref<Plugintype[]>([]);
@@ -52,7 +52,6 @@ watch(
 
 async function loadExistingConfig() {
   try {
-
     const response = await fetch("/api/plugins/config");
 
     if (!response.ok) {
@@ -135,7 +134,6 @@ const addPlugin = (pluginName: string) => {
 
 const updateSelectedVersion = (pluginName: string, version: string) => {
   selectedVersions.value[pluginName] = version;
-
 };
 
 const updateYamlString = async () => {
@@ -199,11 +197,7 @@ const saveToServer = async () => {
       </div>
 
       <div v-else>
-        <Alert
-          v-if="error"
-          variant="destructive"
-          class="mb-4"
-        >
+        <Alert v-if="error" variant="destructive" class="mb-4">
           <AlertDescription>{{ error }}</AlertDescription>
         </Alert>
 
@@ -228,7 +222,10 @@ const saveToServer = async () => {
                 <PluginList :plugins="plugins" @delete-plugin="deletePlugin" />
               </TabsContent>
               <TabsContent value="yaml">
-                <pre class="p-4 bg-muted rounded overflow-auto max-h-60 text-sm">{{ yamlString }}</pre>
+                <pre
+                  class="p-4 bg-muted rounded overflow-auto max-h-60 text-sm"
+                  >{{ yamlString }}</pre
+                >
               </TabsContent>
             </Tabs>
 

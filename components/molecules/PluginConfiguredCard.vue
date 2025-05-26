@@ -20,17 +20,11 @@ defineEmits<{
       <div>
         <p class="font-medium">{{ name }}</p>
         <div class="flex items-center mt-1">
-          <Badge variant="secondary" class="text-xs">
-            v{{ version }}
-          </Badge>
+          <Badge variant="secondary" class="text-xs"> v{{ version }} </Badge>
         </div>
       </div>
       <div class="flex space-x-2">
-        <Button
-          variant="outline"
-          size="icon"
-          @click="$emit('settings', name)"
-        >
+        <Button variant="outline" size="icon" @click="$emit('settings', name)">
           <Settings class="h-4 w-4" />
         </Button>
         <Button
