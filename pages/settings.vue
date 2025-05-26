@@ -4,7 +4,7 @@ import SettingsBreadcrumb from "~/components/molecules/breadcrumbs/SettingsBread
 
 <template>
   <div>
-    <h2>Settings</h2>
     <SettingsBreadcrumb />
+    <h2>Settings</h2>
   </div>
 </template>

@@ -4,7 +4,7 @@ import LogsBreadcrumb from "~/components/molecules/breadcrumbs/LogsBreadcrumb.vu
 
 <template>
   <div>
-    <h2>Configuration</h2>
     <LogsBreadcrumb />
+    <h2>Configuration</h2>
   </div>
 </template>

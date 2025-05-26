@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { defineEventHandler, readBody } from "h3";
 
-
 export default defineEventHandler(async (event) => {
   const method = event.node.req.method;
 
@@ -20,7 +19,8 @@ export default defineEventHandler(async (event) => {
         return { error: "Configuration file not found" };
       }
     } catch (error) {
-      console.error("Error reading plugin configuration:", error);vent.node.res.statusCode = 500;
+      console.error("Error reading plugin configuration:", error);
+      vent.node.res.statusCode = 500;
       return {
         error: `Failed to read configuration: ${(error as Error).message}`,
       };

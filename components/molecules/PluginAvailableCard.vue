@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Settings } from "lucide-vue-next";
 
 defineProps<{
@@ -12,7 +24,7 @@ defineProps<{
 }>();
 
 defineEmits<{
-  (e: "settings" |"add", name: string): void;
+  (e: "settings" | "add", name: string): void;
   (e: "update-version", name: string, version: string): void;
 }>();
 </script>
@@ -46,19 +58,11 @@ defineEmits<{
       <p class="text-sm text-muted-foreground">{{ description }}</p>
     </CardContent>
     <CardFooter class="flex gap-2">
-      <Button
-        variant="secondary"
-        class="flex-1"
-        @click="$emit('add', name)"
-      >
+      <Button variant="secondary" class="flex-1" @click="$emit('add', name)">
         Add
       </Button>
 
-      <Button
-        variant="outline"
-        size="icon"
-        @click="$emit('settings', name)"
-      >
+      <Button variant="outline" size="icon" @click="$emit('settings', name)">
         <Settings class="h-4 w-4" />
       </Button>
     </CardFooter>

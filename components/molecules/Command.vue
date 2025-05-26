@@ -49,7 +49,7 @@ function handleOpenChange() {
       <div
         class="text-sm text-muted-foreground flex flex-row items-center gap-2 sm:gap-4"
       >
-        <Icon icon="radix-icons:magnifying-glass" class="sm:hidden"/>
+        <Icon icon="radix-icons:magnifying-glass" class="sm:hidden" />
         <p class="hidden sm:block">Quick Search...</p>
         <kbd
           class="pointer-events-none px-1 flex flex-row gap-1 items-center select-none rounded border bg-muted font-mono font-medium text-muted-foreground opacity-100"

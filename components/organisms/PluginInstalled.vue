@@ -3,8 +3,8 @@ import type { Plugintype } from "~/assets/types/typelist";
 import { computed, onMounted, ref, watch } from "vue";
 import { parse as parseYaml } from "yaml";
 import PluginConfiguredCard from "../molecules/PluginConfiguredCard.vue";
-import PluginSettingsDialog from "../molecules/PluginSettingsDialog.vue";
 import PluginListContainer from "../molecules/PluginList.vue";
+import PluginSettingsDialog from "../molecules/PluginSettingsDialog.vue";
 
 const props = defineProps<{
   plugins: Plugintype[];
@@ -16,7 +16,7 @@ watch(
   () => props.plugins,
   (newPlugins) => {
     if (newPlugins && Array.isArray(newPlugins)) {
-      localPlugins.value = newPlugins.map(plugin => ({...plugin}));
+      localPlugins.value = newPlugins.map((plugin) => ({ ...plugin }));
     } else {
       localPlugins.value = [];
     }
@@ -91,7 +91,9 @@ const openSettings = (pluginName: string) => {
 const saveSettings = () => {
   if (selectedPlugin.value && selectedVersion.value) {
     // First update local state to immediately reflect the change in UI
-    const pluginIndex = localPlugins.value.findIndex(p => p.name === selectedPlugin.value.name);
+    const pluginIndex = localPlugins.value.findIndex(
+      (p) => p.name === selectedPlugin.value.name,
+    );
     if (pluginIndex !== -1) {
       localPlugins.value[pluginIndex].version = selectedVersion.value;
     }
@@ -105,7 +107,7 @@ const saveSettings = () => {
 };
 
 const handleDelete = (pluginName: string) => {
-  emit('deletePlugin', pluginName);
+  emit("deletePlugin", pluginName);
 };
 
 watch(
@@ -116,7 +118,7 @@ watch(
       selectedVersion.value = "";
     }
   },
-  { flush: 'post' }
+  { flush: "post" },
 );
 
 onMounted(() => {
