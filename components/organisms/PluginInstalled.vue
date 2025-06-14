@@ -1,27 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import type { InstalledPlugin } from "~/assets/types/typelist";
+import type { InstalledPlugin, RegistryPlugin } from "~/assets/types/typelist";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import PluginSettingsDialog from "~/components/molecules/PluginSettingsDialog.vue";
 import {
   Package,
   Trash2,
@@ -30,56 +14,134 @@ import {
   XCircle
 } from "lucide-vue-next";
 
+// Define more specific types
+type PluginSettings = Record<string, unknown>;
+type PluginEnvironment = Record<string, unknown>;
+type PluginDependency = {
+  name: string;
+  version?: string;
+  [key: string]: unknown;
+};
+
 interface Props {
-  plugins: InstalledPlugin[];
+  plugins: Record<string, Omit<InstalledPlugin, 'name'>>;
+  registryPlugins: Record<string, RegistryPlugin>;
 }
 
 interface Emits {
-  (e: "delete-plugin" | "configure-plugin", pluginName: string): void;
+  (e: "delete-plugin", pluginName: string): void;
+  (e: "configure-plugin", pluginName: string, withSettings?: boolean, settings?: PluginSettings, environment?: PluginEnvironment, dependencies?: PluginDependency[]): void;
   (e: "toggle-plugin", pluginName: string, enabled: boolean): void;
 }
-
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-// Dialog state
-const dialogOpen = ref(false);
+const showSettingsDialog = ref(false);
 const selectedPluginName = ref<string | null>(null);
-const selectedVersion = ref("");
-const availableVersions = ref<string[]>([]);
-const isLoadingVersions = ref(false);
+const selectedPlugin = ref<InstalledPlugin | null>(null);
+const dialogSelectedVersion = ref('');
+
+const pluginArray = computed(() => {
+  return Object.entries(props.plugins).map(([name, pluginData]) => ({
+    name,
+    ...pluginData
+  }));
+});
 
 const enabledPlugins = computed(() =>
-    props.plugins.filter(plugin => plugin.enabled)
+    pluginArray.value.filter(plugin => plugin.enabled)
 );
 
 const disabledPlugins = computed(() =>
-    props.plugins.filter(plugin => !plugin.enabled)
+    pluginArray.value.filter(plugin => !plugin.enabled)
 );
+
+const availableVersions = computed(() => {
+  if (!selectedPlugin.value) return [];
+
+  const registryPlugin = props.registryPlugins[selectedPlugin.value.name];
+  if (registryPlugin?.versions) {
+    return registryPlugin.versions.map(v => v.version);
+  }
+
+  if (selectedPlugin.value.versions) {
+    return selectedPlugin.value.versions.map(v => v.version);
+  }
+
+  return [selectedPlugin.value.version];
+});
+
+const pluginSettingsWithValues = computed(() => {
+  if (!selectedPlugin.value) {
+    return undefined;
+  }
+
+  const registryPlugin = props.registryPlugins[selectedPlugin.value.name];
+  const settingsSchema = registryPlugin?.settings;
+  const currentValues = selectedPlugin.value.settings;
+  const currentEnvironment = selectedPlugin.value.environment;
+
+  let settingsWithValues = undefined;
+  let environmentWithValues = undefined;
+
+  if (settingsSchema && settingsSchema.properties) {
+    settingsWithValues = JSON.parse(JSON.stringify(settingsSchema));
+
+    if (currentValues && settingsWithValues.properties) {
+      Object.keys(settingsWithValues.properties).forEach(key => {
+        if (currentValues[key] !== undefined) {
+          settingsWithValues.properties[key].default = currentValues[key];
+        }
+      });
+    }
+  } else {
+    settingsWithValues = settingsSchema;
+  }
+
+  if (currentEnvironment && typeof currentEnvironment === 'object' && Object.keys(currentEnvironment).length > 0) {
+    environmentWithValues = { ...currentEnvironment };
+  } else {
+    environmentWithValues = undefined;
+  }
+
+  return {
+    settings: settingsWithValues,
+    environment: environmentWithValues
+  };
+});
 
 const handleDeletePlugin = (pluginName: string) => {
   emit("delete-plugin", pluginName);
 };
-const handleConfigurePlugin = (pluginName: string) => {
-  selectedPluginName.value = pluginName;
 
-  // Find the current plugin to get its version
-  const plugin = props.plugins.find(p => p.name === pluginName);
-  if (plugin) {
-    selectedVersion.value = plugin.version;
-    // In a real app, you would fetch available versions here
-    availableVersions.value = [plugin.version, "1.0.0", "1.1.0", "2.0.0"];
+const handleConfigurePlugin = (pluginName: string) => {
+  const plugin = pluginArray.value.find(p => p.name === pluginName);
+  if (!plugin) {
+    return;
   }
 
-  dialogOpen.value = true;
-  emit("configure-plugin", pluginName);
+  selectedPluginName.value = pluginName;
+  selectedPlugin.value = plugin;
+  dialogSelectedVersion.value = plugin.version;
+
+  setTimeout(() => {
+    showSettingsDialog.value = true;
+  }, 0);
 };
 
-const handleDialogSave = () => {
-  // Handle saving the configuration here
-  console.log("Saving configuration for:", selectedPluginName.value, "Version:", selectedVersion.value);
-  dialogOpen.value = false;
+const handleSettingsDialogSubmit = (settingsData?: PluginSettings, environmentData?: PluginEnvironment) => {
+  if (!selectedPluginName.value) return;
+
+  emit("configure-plugin", selectedPluginName.value, true, settingsData, environmentData, selectedPlugin.value?.dependencies);
+
+  showSettingsDialog.value = false;
+  selectedPluginName.value = null;
+  selectedPlugin.value = null;
+};
+
+const handleDialogVersionChange = (version: string) => {
+  dialogSelectedVersion.value = version;
 };
 
 const getPluginStatus = (plugin: InstalledPlugin) => {
@@ -103,19 +165,18 @@ const getStatusColor = (plugin: InstalledPlugin) => {
         <Package class="h-5 w-5" />
         Installed Plugins
         <Badge variant="secondary" class="ml-auto">
-          {{ plugins.length }}
+          {{ pluginArray.length }}
         </Badge>
       </CardTitle>
     </CardHeader>
     <CardContent>
-      <div v-if="plugins.length === 0" class="text-center py-8 text-muted-foreground">
+      <div v-if="pluginArray.length === 0" class="text-center py-8 text-muted-foreground">
         <Package class="h-12 w-12 mx-auto mb-2 opacity-50" />
         <p class="font-medium">No plugins installed</p>
         <p class="text-sm">Install plugins from the available list to get started</p>
       </div>
 
       <div v-else class="space-y-4">
-        <!-- Enabled Plugins -->
         <div v-if="enabledPlugins.length > 0">
           <div class="flex items-center gap-2 mb-3">
             <CheckCircle class="h-4 w-4 text-green-600" />
@@ -172,10 +233,8 @@ const getStatusColor = (plugin: InstalledPlugin) => {
           </div>
         </div>
 
-        <!-- Separator -->
         <Separator v-if="enabledPlugins.length > 0 && disabledPlugins.length > 0" />
 
-        <!-- Disabled Plugins -->
         <div v-if="disabledPlugins.length > 0">
           <div class="flex items-center gap-2 mb-3">
             <XCircle class="h-4 w-4 text-red-600" />
@@ -235,58 +294,17 @@ const getStatusColor = (plugin: InstalledPlugin) => {
     </CardContent>
   </Card>
 
-  <!-- Plugin Settings Dialog -->
-  <Dialog v-model:open="dialogOpen">
-    <DialogContent class="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>
-          Plugin Settings for {{ selectedPluginName }}
-        </DialogTitle>
-        <DialogDescription v-if="selectedPluginName">
-          Configure settings for this plugin
-        </DialogDescription>
-      </DialogHeader>
-
-      <form v-if="selectedPluginName" class="grid gap-4 py-4" @submit.prevent="handleDialogSave">
-        <div class="grid grid-cols-4 items-center gap-4">
-          <Label for="version" class="text-right">Version</Label>
-          <div class="col-span-3">
-            <Select v-model="selectedVersion">
-              <SelectTrigger :disabled="isLoadingVersions">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="version in availableVersions" :key="version" :value="version">
-                  {{ version }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p v-if="isLoadingVersions" class="text-xs text-muted-foreground mt-1">
-              Loading available versions...
-            </p>
-            <p v-else-if="availableVersions.length === 0" class="text-xs text-muted-foreground mt-1">
-              No additional versions available
-            </p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-4 items-center gap-4">
-          <Label for="setting1" class="text-right">Setting 1</Label>
-          <Input id="setting1" placeholder="Setting 1 value" class="col-span-3" />
-        </div>
-
-        <div class="grid grid-cols-4 items-center gap-4">
-          <Label for="setting2" class="text-right">Setting 2</Label>
-          <Input id="setting2" placeholder="Setting 2 value" class="col-span-3" />
-        </div>
-
-        <DialogFooter>
-          <Button type="button" variant="outline" @click="dialogOpen = false">Cancel</Button>
-          <Button type="submit" :disabled="isLoadingVersions">
-            Save changes
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  </Dialog>
+  <PluginSettingsDialog
+      v-if="selectedPlugin && showSettingsDialog"
+      v-model:open="showSettingsDialog"
+      :plugin-name="selectedPlugin.name"
+      :versions="availableVersions"
+      :selected-version="dialogSelectedVersion"
+      :settings="pluginSettingsWithValues?.settings"
+      :environment="pluginSettingsWithValues?.environment"
+      :dependencies="selectedPlugin.dependencies"
+      mode="configure"
+      @update:selected-version="handleDialogVersionChange"
+      @save="handleSettingsDialogSubmit"
+  />
 </template>

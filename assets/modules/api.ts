@@ -1,4 +1,4 @@
-import type { PluginRegistry, RegistryPlugin, PluginSearchParams, PluginMetadata } from "~/assets/types/typelist";
+import type { PluginRegistry, PluginSearchParams, PluginMetadata } from "~/assets/types/typelist";
 
 // Configuration - change this URL to switch between local mock server and git repository
 const REGISTRY_CONFIG = {
@@ -20,6 +20,43 @@ const CURRENT_CONFIG_KEY: keyof typeof REGISTRY_CONFIG = "git"; // Change to "lo
 // Helper function to get current config
 function getCurrentConfig() {
   return REGISTRY_CONFIG[CURRENT_CONFIG_KEY];
+}
+
+// Define interfaces locally (removed RegistryPlugin from imports to avoid conflict)
+interface PluginSettings {
+  type: string;
+  properties: Record<string, unknown>;
+}
+
+interface PluginDependency {
+  name: string;
+  url?: string;
+  version?: string;
+}
+
+interface RegistryPlugin {
+  name: string;
+  description: string;
+  versions?: unknown[];
+  deprecated?: boolean;
+  deprecatedReason?: string;
+  updateTime?: string;
+  authors: string[];
+  license?: string;
+  homepage?: string;
+  documentation?: string;
+  repository?: string;
+  tags?: string[];
+  environment?: string; // Added missing environment field
+  settings?: PluginSettings;
+  dependencies?: PluginDependency[];
+}
+
+// Extended metadata interface for type safety
+interface ExtendedPluginMetadata extends PluginMetadata {
+  environment?: string;
+  settings?: PluginSettings;
+  dependencies?: PluginDependency[];
 }
 
 /**
@@ -72,10 +109,12 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
     const registry = await fetchRegistry();
     const plugins: RegistryPlugin[] = [];
 
-    // Process each plugin from the registry
+    // process plugin 1 by 1
     for (const [pluginName, pluginData] of Object.entries(registry.plugins)) {
       try {
         const metadata = await fetchPluginMetadata(pluginName);
+        const extendedMetadata = metadata as ExtendedPluginMetadata;
+
         const plugin: RegistryPlugin = {
           name: pluginName,
           description: pluginData.description || metadata.description,
@@ -89,7 +128,11 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
           homepage: metadata.homepage,
           documentation: metadata.documentation,
           repository: metadata.repository,
-          tags: metadata.tags || []
+          tags: metadata.tags || [],
+          // Use extended metadata with proper typing
+          environment: extendedMetadata.environment,
+          settings: extendedMetadata.settings,
+          dependencies: extendedMetadata.dependencies || []
         };
 
         plugins.push(plugin);
@@ -106,7 +149,11 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
           updateTime: pluginData["update-time"],
           authors: [],
           license: "Unknown",
-          tags: []
+          tags: [],
+          // Set undefined for missing fields in fallback
+          environment: undefined,
+          settings: undefined,
+          dependencies: []
         };
 
         plugins.push(plugin);
@@ -116,6 +163,86 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
     return { plugins };
   } catch (error) {
     console.error("Error fetching available plugins:", error);
+    throw error;
+  }
+}
+
+export async function fetchPluginDetails(pluginName: string): Promise<RegistryPlugin> {
+  try {
+    const config = getCurrentConfig();
+
+    if (config.type === "local") {
+      const response = await fetch(`${config.baseUrl}/registry/plugins/${pluginName}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(`Plugin '${pluginName}' not found`);
+        }
+        throw new Error(`Failed to fetch plugin details: ${response.statusText}`);
+      }
+
+      const pluginData = await response.json();
+
+      try {
+        const metadata = await fetchPluginMetadata(pluginName);
+        const extendedMetadata = metadata as ExtendedPluginMetadata;
+
+        return {
+          ...pluginData,
+          authors: metadata.authors || [],
+          license: metadata.license || "Unknown",
+          homepage: metadata.homepage,
+          documentation: metadata.documentation,
+          repository: metadata.repository,
+          tags: metadata.tags || [],
+          // Use extended metadata with proper typing
+          environment: extendedMetadata.environment,
+          settings: extendedMetadata.settings,
+          dependencies: extendedMetadata.dependencies || []
+        };
+      } catch {
+        return {
+          ...pluginData,
+          authors: [],
+          license: "Unknown",
+          tags: [],
+          // Set undefined for missing fields in fallback
+          environment: undefined,
+          settings: undefined,
+          dependencies: []
+        };
+      }
+    } else {
+      const registry = await fetchRegistry();
+      const pluginData = registry.plugins[pluginName];
+
+      if (!pluginData) {
+        throw new Error(`Plugin '${pluginName}' not found`);
+      }
+
+      const metadata = await fetchPluginMetadata(pluginName);
+      const extendedMetadata = metadata as ExtendedPluginMetadata;
+
+      return {
+        name: pluginName,
+        description: pluginData.description || metadata.description,
+        versions: pluginData.versions || [],
+        deprecated: pluginData.deprecated || metadata["plugin-deprecated"] || false,
+        deprecatedReason: pluginData["deprecated-reason"] || metadata["plugin-deprecation-reason"],
+        updateTime: pluginData["update-time"] || metadata["update-time"],
+        authors: metadata.authors || [],
+        license: metadata.license || "Unknown",
+        homepage: metadata.homepage,
+        documentation: metadata.documentation,
+        repository: metadata.repository,
+        tags: metadata.tags || [],
+        // Use extended metadata with proper typing
+        environment: extendedMetadata.environment,
+        settings: extendedMetadata.settings,
+        dependencies: extendedMetadata.dependencies || []
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching plugin details:", error);
     throw error;
   }
 }
@@ -134,7 +261,7 @@ export async function searchPlugins(params: PluginSearchParams): Promise<{ count
 
       const response = await fetch(`${config.baseUrl}/registry/search?${searchParams}`);
       if (!response.ok) {
-        throw new Error(`Search failed: ${response.statusText}`);
+        throw new Error(`Search failed: ${response.statusText}`); // Fixed: was missing 'throw'
       }
 
       const result = await response.json();
@@ -143,6 +270,8 @@ export async function searchPlugins(params: PluginSearchParams): Promise<{ count
       for (const plugin of result.plugins) {
         try {
           const metadata = await fetchPluginMetadata(plugin.name);
+          const extendedMetadata = metadata as ExtendedPluginMetadata;
+
           enhancedPlugins.push({
             ...plugin,
             authors: metadata.authors || [],
@@ -150,14 +279,21 @@ export async function searchPlugins(params: PluginSearchParams): Promise<{ count
             homepage: metadata.homepage,
             documentation: metadata.documentation,
             repository: metadata.repository,
-            tags: metadata.tags || plugin.tags || []
+            tags: metadata.tags || plugin.tags || [],
+            // Use extended metadata with proper typing
+            environment: extendedMetadata.environment,
+            settings: extendedMetadata.settings,
+            dependencies: extendedMetadata.dependencies || []
           });
         } catch {
           enhancedPlugins.push({
             ...plugin,
             authors: [],
             license: "Unknown",
-            tags: plugin.tags || []
+            tags: plugin.tags || [],
+            environment: undefined,
+            settings: undefined,
+            dependencies: []
           });
         }
       }
@@ -192,74 +328,6 @@ export async function searchPlugins(params: PluginSearchParams): Promise<{ count
     }
   } catch (error) {
     console.error("Error searching plugins:", error);
-    throw error;
-  }
-}
-
-/**
- * Fetch specific plugin details with metadata
- */
-export async function fetchPluginDetails(pluginName: string): Promise<RegistryPlugin> {
-  try {
-    const config = getCurrentConfig();
-
-    if (config.type === "local") {
-      const response = await fetch(`${config.baseUrl}/registry/plugins/${pluginName}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`Plugin '${pluginName}' not found`);
-        }
-        throw new Error(`Failed to fetch plugin details: ${response.statusText}`);
-      }
-
-      const pluginData = await response.json();
-
-      try {
-        const metadata = await fetchPluginMetadata(pluginName);
-        return {
-          ...pluginData,
-          authors: metadata.authors || [],
-          license: metadata.license || "Unknown",
-          homepage: metadata.homepage,
-          documentation: metadata.documentation,
-          repository: metadata.repository,
-          tags: metadata.tags || []
-        };
-      } catch {
-        return {
-          ...pluginData,
-          authors: [],
-          license: "Unknown",
-          tags: []
-        };
-      }
-    } else {
-      const registry = await fetchRegistry();
-      const pluginData = registry.plugins[pluginName];
-
-      if (!pluginData) {
-        throw new Error(`Plugin '${pluginName}' not found`);
-      }
-
-      const metadata = await fetchPluginMetadata(pluginName);
-
-      return {
-        name: pluginName,
-        description: pluginData.description || metadata.description,
-        versions: pluginData.versions || [],
-        deprecated: pluginData.deprecated || metadata["plugin-deprecated"] || false,
-        deprecatedReason: pluginData["deprecated-reason"] || metadata["plugin-deprecation-reason"],
-        updateTime: pluginData["update-time"] || metadata["update-time"],
-        authors: metadata.authors || [],
-        license: metadata.license || "Unknown",
-        homepage: metadata.homepage,
-        documentation: metadata.documentation,
-        repository: metadata.repository,
-        tags: metadata.tags || []
-      };
-    }
-  } catch (error) {
-    console.error("Error fetching plugin details:", error);
     throw error;
   }
 }

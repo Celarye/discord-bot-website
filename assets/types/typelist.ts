@@ -1,16 +1,3 @@
-export interface Plugintype {
-  name: string;
-  version: string;
-}
-
-export interface AvailablePlugins {
-  name: string;
-  versions: string[];
-  description: string;
-}
-
-// ~/assets/types/typelist.ts
-
 export interface PluginVersion {
   version: string;
   "compatible-bot-version": number;
@@ -44,6 +31,17 @@ export interface RegistryPluginData {
   "deprecated-reason"?: string;
 }
 
+interface PluginSettings {
+  type: string;
+  properties: Record<string, unknown>;
+}
+
+interface PluginDependency {
+  name: string;
+  url?: string;
+  version?: string;
+}
+
 export interface RegistryPlugin {
   name: string;
   description: string;
@@ -58,6 +56,9 @@ export interface RegistryPlugin {
   documentation?: string;
   repository?: string;
   tags?: string[];
+  settings?: PluginSettings;
+  environment?: Record<string, unknown>;
+  dependencies?: PluginDependency[];
 }
 
 export interface PluginRegistry {
@@ -77,11 +78,14 @@ export interface PluginSearchParams {
 }
 
 export interface InstalledPlugin {
-  name: string;
+  name?: string;
   version: string;
   enabled: boolean;
   installedAt: string;
-  // Optional metadata
+  settings?: Record<string, unknown>;
+  environment?: Record<string, unknown>;
+  isDependency?: boolean; // Whether this plugin was installed as a dependency
+  dependentPlugin?: string; // Which plugin this is a dependency for
   description?: string;
   authors?: string[];
   license?: string;

@@ -21,15 +21,29 @@ import {
 } from "lucide-vue-next";
 
 interface PluginConfig {
-  plugins: InstalledPlugin[];
+  plugins: Record<string, Omit<InstalledPlugin, 'name'>>;
   metadata?: {
     lastUpdated: string;
     version: string;
   };
 }
 
+interface PluginSettings {
+  [key: string]: string | number | boolean | null | undefined;
+}
+
+interface PluginEnvironment {
+  [key: string]: string | number | boolean | null | undefined;
+}
+
+interface PluginDependency {
+  name: string;
+  version?: string;
+  [key: string]: unknown;
+}
+
 const fileContent = ref<string | null>(null);
-const plugins = ref<InstalledPlugin[]>([]);
+const plugins = ref<Record<string, Omit<InstalledPlugin, 'name'>>>({});
 const availablePlugins = ref<RegistryPlugin[]>([]);
 const selectedVersions = ref<{ [key: string]: string }>({});
 const jsonString = ref<string>("");
@@ -39,12 +53,17 @@ const error = ref<string | null>(null);
 const isRegistryOnline = ref<boolean>(false);
 const lastSync = ref<string | null>(null);
 
-// Computed properties
-const installedPluginNames = computed(() =>
-    plugins.value.map(p => p.name)
-);
+const installedPluginNames = computed(() => Object.keys(plugins.value));
 
+const registryPluginsMap = computed(() => {
+  const map: Record<string, RegistryPlugin> = {};
+  availablePlugins.value.forEach(plugin => {
+    map[plugin.name] = plugin;
+  });
+  return map;
+});
 
+const installedPluginsCount = computed(() => Object.keys(plugins.value).length);
 
 onMounted(async () => {
   await initializePluginManager();
@@ -63,18 +82,14 @@ async function initializePluginManager() {
   error.value = null;
 
   try {
-    // Check registry health
     isRegistryOnline.value = await checkRegistryHealth();
 
     if (isRegistryOnline.value) {
-      // Fetch available plugins from registry
       const data = await fetchAvailable();
       availablePlugins.value = data.plugins || [];
 
-      // Set default selected versions
       availablePlugins.value.forEach((plugin) => {
         if (plugin.versions && plugin.versions.length > 0) {
-          // Get latest non-deprecated version
           const nonDeprecated = plugin.versions.filter(v => !v.deprecated);
           const latestVersion = nonDeprecated.length > 0
               ? nonDeprecated[nonDeprecated.length - 1]
@@ -89,10 +104,8 @@ async function initializePluginManager() {
       error.value = "Registry is offline. You can still manage installed plugins.";
     }
 
-    // Load existing configuration
     await loadExistingConfig();
   } catch (err) {
-    console.error("Failed to initialize plugin manager:", err);
     error.value = err instanceof Error ? err.message : "Failed to initialize plugin manager";
   } finally {
     isLoading.value = false;
@@ -105,8 +118,7 @@ async function loadExistingConfig() {
 
     if (!response.ok) {
       if (response.status === 404) {
-        // No config file exists yet, that's OK
-        plugins.value = [];
+        plugins.value = {};
         updateJsonString();
         return;
       }
@@ -116,12 +128,22 @@ async function loadExistingConfig() {
     const config: PluginConfig = await response.json();
 
     if (config && config.plugins) {
-      plugins.value = config.plugins;
+      if (Array.isArray(config.plugins)) {
+        const pluginsObject: Record<string, Omit<InstalledPlugin, 'name'>> = {};
+        config.plugins.forEach((plugin: InstalledPlugin) => {
+          if (plugin.name) {
+            const { name, ...pluginData } = plugin;
+            pluginsObject[name] = pluginData;
+          }
+        });
+        plugins.value = pluginsObject;
+      } else {
+        plugins.value = config.plugins;
+      }
       updateJsonString();
     }
   } catch (err) {
     console.warn("Could not load existing configuration:", err);
-    // Don't set error here as this might be expected for new installations
   }
 }
 
@@ -137,25 +159,36 @@ const openFile = async (event: Event) => {
       const content = e.target?.result as string;
       let configData: PluginConfig;
 
-      // Try to parse as JSON first
       try {
         configData = JSON.parse(content);
-      } catch(err) {
-        console.error(err)
+      } catch {
+        throw new Error("Invalid JSON format");
       }
 
-      if (configData && configData.plugins && Array.isArray(configData.plugins)) {
+      if (configData && configData.plugins) {
         fileContent.value = content;
-        plugins.value = configData.plugins;
+
+        if (Array.isArray(configData.plugins)) {
+          const pluginsObject: Record<string, Omit<InstalledPlugin, 'name'>> = {};
+          configData.plugins.forEach((plugin: InstalledPlugin) => {
+            if (plugin.name) {
+              const { name, ...pluginData } = plugin;
+              pluginsObject[name] = pluginData;
+            }
+          });
+          plugins.value = pluginsObject;
+        } else {
+          plugins.value = configData.plugins;
+        }
+
         updateJsonString();
         error.value = null;
       } else {
-        new Error("Invalid configuration structure");
+        throw new Error("Invalid configuration structure");
       }
     } catch (err) {
-      console.error("Error parsing configuration file:", err);
       error.value = `Invalid configuration file: ${err instanceof Error ? err.message : 'Unknown error'}`;
-      plugins.value = [];
+      plugins.value = {};
     }
   };
 
@@ -164,69 +197,200 @@ const openFile = async (event: Event) => {
 
 const deletePlugin = async (pluginName: string) => {
   try {
-    // Remove from local state
-    plugins.value = plugins.value.filter((plugin) => plugin.name !== pluginName);
-    error.value = null;
+    const { [pluginName]: _, ...rest } = plugins.value;
+    plugins.value = rest;
 
-    // Optionally sync with server immediately
+    error.value = null;
     await saveToServer();
   } catch (err) {
-    console.error("Error deleting plugin:", err);
     error.value = `Failed to delete plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 };
 
-const addPlugin = (pluginName: string) => {
-  const pluginInfo = availablePlugins.value.find((p) => p.name === pluginName);
-  if (!pluginInfo) return;
-
-  const version =
-      selectedVersions.value[pluginName] ||
-      (pluginInfo.versions && pluginInfo.versions.length > 0
-          ? pluginInfo.versions[pluginInfo.versions.length - 1].version
-          : "latest");
-
-  const existingPluginIndex = plugins.value.findIndex(
-      (p) => p.name === pluginName
-  );
-
-  if (existingPluginIndex !== -1) {
-    plugins.value[existingPluginIndex] = {
-      ...plugins.value[existingPluginIndex],
-      version,
-      enabled: true
-    };
-  } else {
-    plugins.value.push({
-      name: pluginName,
-      version,
-      enabled: true
-    });
-  }
-
-  error.value = null;
-};
-
 const togglePlugin = async (pluginName: string, enabled: boolean) => {
   try {
-    const pluginIndex = plugins.value.findIndex(p => p.name === pluginName);
-    if (pluginIndex === -1) return;
+    if (!plugins.value[pluginName]) return;
 
-    plugins.value[pluginIndex] = {
-      ...plugins.value[pluginIndex],
+    plugins.value[pluginName] = {
+      ...plugins.value[pluginName],
       enabled
     };
 
-    // Sync with server
-    await saveToServer();
+    const response = await fetch("/api/plugins/config", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        pluginName: pluginName,
+        updates: { enabled }
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update plugin: ${response.statusText}`);
+    }
+
+    error.value = null;
   } catch (err) {
-    console.error("Error toggling plugin:", err);
     error.value = `Failed to toggle plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 };
 
-const configurePlugin = (pluginName: string) => {
-  console.log("Configure plugin:", pluginName);
+const configurePlugin = async (
+    pluginName: string,
+    withSettings?: boolean,
+    settings?: PluginSettings,
+    environment?: PluginEnvironment,
+    dependencies?: PluginDependency[]
+) => {
+  try {
+    if (!plugins.value[pluginName]) {
+      error.value = `Plugin "${pluginName}" not found`;
+      return;
+    }
+
+    const updates: {
+      settings?: PluginSettings;
+      environment?: PluginEnvironment;
+      dependencies?: PluginDependency[];
+    } = {};
+
+    if (settings !== undefined) {
+      if (settings && Object.keys(settings).length > 0) {
+        updates.settings = settings;
+      } else {
+        updates.settings = undefined;
+      }
+    }
+
+    if (environment !== undefined) {
+      if (environment && Object.keys(environment).length > 0) {
+        updates.environment = environment;
+      } else {
+        updates.environment = undefined;
+      }
+    }
+
+    if (dependencies !== undefined) {
+      if (dependencies && dependencies.length > 0) {
+        updates.dependencies = dependencies;
+      } else {
+        updates.dependencies = undefined;
+      }
+    }
+
+    const response = await fetch("/api/plugins/config", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        pluginName: pluginName,
+        updates: updates
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to update plugin: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      if (result.plugin) {
+        const { name, ...pluginData } = result.plugin;
+        plugins.value[pluginName] = pluginData;
+      } else {
+        await loadExistingConfig();
+      }
+      error.value = null;
+    } else {
+      throw new Error(result.error || "Unknown error occurred");
+    }
+  } catch (err) {
+    error.value = `Failed to configure plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
+    await loadExistingConfig();
+  }
+};
+
+const addPlugin = async (
+    pluginName: string,
+    withSettings?: boolean,
+    settings?: PluginSettings,
+    environment?: PluginEnvironment,
+    dependencies?: PluginDependency[],
+    version?: string
+) => {
+  try {
+    const pluginInfo = availablePlugins.value.find((p) => p.name === pluginName);
+    if (!pluginInfo) {
+      error.value = `Plugin "${pluginName}" not found in registry`;
+      return;
+    }
+
+    const selectedVersion = version ||
+        selectedVersions.value[pluginName] ||
+        (pluginInfo.versions && pluginInfo.versions.length > 0
+            ? pluginInfo.versions[pluginInfo.versions.length - 1].version
+            : "latest");
+
+    if (plugins.value[pluginName]) {
+      error.value = `Plugin "${pluginName}" is already installed`;
+      return;
+    }
+
+    const requestBody = {
+      action: 'add-plugin',
+      plugin: {
+        name: pluginName,
+        version: selectedVersion,
+        enabled: true,
+        settings: settings && Object.keys(settings).length > 0 ? settings : undefined,
+        environment: environment && Object.keys(environment).length > 0 ? environment : undefined,
+        dependencies: dependencies && dependencies.length > 0 ? dependencies : undefined
+      }
+    };
+
+    const response = await fetch("/api/plugins/config", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to install plugin: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      await loadExistingConfig();
+      error.value = null;
+    } else {
+      throw new Error(result.error || "Unknown error occurred");
+    }
+  } catch (err) {
+    error.value = `Failed to install plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
+  }
+};
+
+const handleConfigurePlugin = (
+    pluginName: string,
+    withSettings?: boolean,
+    settings?: PluginSettings,
+    environment?: PluginEnvironment,
+    dependencies?: PluginDependency[]
+) => {
+  configurePlugin(pluginName, withSettings, settings, environment, dependencies);
+};
+
+const handleDeletePlugin = (pluginName: string) => {
+  deletePlugin(pluginName);
 };
 
 const updateSelectedVersion = (pluginName: string, version: string) => {
@@ -243,8 +407,7 @@ const updateJsonString = () => {
       }
     };
     jsonString.value = JSON.stringify(config, null, 2);
-  } catch (err) {
-    console.error("Failed to generate JSON:", err);
+  } catch {
     jsonString.value = "// Error generating JSON";
   }
 };
@@ -258,7 +421,6 @@ const saveFile = () => {
     link.click();
     URL.revokeObjectURL(link.href);
   } catch (err) {
-    console.error("Failed to save file:", err);
     error.value = `Failed to save file: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 };
@@ -293,7 +455,6 @@ const saveToServer = async (): Promise<boolean> => {
       throw new Error(result.message || "Unknown error");
     }
   } catch (err) {
-    console.error("Failed to save to server:", err);
     error.value = `Failed to save configuration: ${err instanceof Error ? err.message : 'Unknown error'}`;
     return false;
   }
@@ -313,7 +474,6 @@ const refreshRegistry = async () => {
       </div>
 
       <div v-else>
-        <!-- Status Alerts -->
         <div class="space-y-3 mb-6">
           <Alert v-if="error" variant="destructive">
             <AlertTriangle class="h-4 w-4" />
@@ -361,8 +521,8 @@ const refreshRegistry = async () => {
               <TabsList class="grid grid-cols-2">
                 <TabsTrigger value="config">
                   Configuration
-                  <Badge v-if="plugins.length > 0" variant="secondary" class="ml-2">
-                    {{ plugins.length }}
+                  <Badge v-if="installedPluginsCount > 0" variant="secondary" class="ml-2">
+                    {{ installedPluginsCount }}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger value="json">JSON Preview</TabsTrigger>
@@ -371,9 +531,10 @@ const refreshRegistry = async () => {
               <TabsContent value="config">
                 <PluginInstalled
                     :plugins="plugins"
-                    @delete-plugin="deletePlugin"
+                    :registry-plugins="registryPluginsMap"
+                    @delete-plugin="handleDeletePlugin"
                     @toggle-plugin="togglePlugin"
-                    @configure-plugin="configurePlugin"
+                    @configure-plugin="handleConfigurePlugin"
                 />
               </TabsContent>
 
@@ -382,7 +543,7 @@ const refreshRegistry = async () => {
               </TabsContent>
             </Tabs>
 
-            <div v-if="plugins.length" class="mt-4 flex flex-wrap gap-2">
+            <div v-if="installedPluginsCount > 0" class="mt-4 flex flex-wrap gap-2">
               <Button class="flex items-center gap-2" @click="saveFile">
                 <Download class="h-4 w-4" />
                 Download JSON

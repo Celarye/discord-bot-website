@@ -1,29 +1,173 @@
 import fs from "fs";
 import path from "path";
+import yaml from "yaml";
 import { defineEventHandler, readBody } from "h3";
 import type { InstalledPlugin } from "~/assets/types/typelist";
 
 interface PluginConfig {
-  plugins: InstalledPlugin[];
+  plugins: Record<string, Omit<InstalledPlugin, 'name'>>;
   metadata?: {
     lastUpdated: string;
     version: string;
   };
 }
 
+interface PluginSettings {
+  [key: string]: string | number | boolean | PluginSettings | Array<string | number | boolean>;
+}
+
+interface PluginEnvironment {
+  [key: string]: string | number | boolean;
+}
+
+interface AddPluginRequest {
+  name: string;
+  version: string;
+  enabled?: boolean;
+  settings?: PluginSettings;
+  environment?: PluginEnvironment;
+  dependencies?: Array<{
+    name: string;
+    url?: string;
+    version?: string;
+  }>;
+}
+
+interface VersionData {
+  version: string;
+  deprecated?: boolean;
+}
+
+interface RegistryPluginData {
+  deprecated?: boolean;
+  versions?: VersionData[];
+  environment?: PluginEnvironment;
+  settings?: PluginSettings;
+}
+
+interface RegistryData {
+  plugins: Record<string, RegistryPluginData>;
+}
+
+interface PluginMetadata {
+  environment?: PluginEnvironment;
+  settings?: PluginSettings;
+}
+
+interface PluginUpdateRequest {
+  environment?: PluginEnvironment | null;
+  settings?: PluginSettings | null;
+  enabled?: boolean;
+  dependencies?: Array<{
+    name: string;
+    url?: string;
+    version?: string;
+  }> | null;
+}
+
+interface ExtendedInstalledPlugin extends Omit<InstalledPlugin, 'name'> {
+  isDependency?: boolean;
+  dependentPlugin?: string;
+}
+
+async function fetchPluginDataFromRegistry(pluginName: string, version?: string): Promise<{
+  version: string;
+  environment?: PluginEnvironment;
+  settings?: PluginSettings;
+} | null> {
+  try {
+    const registryUrl = `https://raw.githubusercontent.com/vihoman/registry-test/main/registry.json`;
+    const response = await fetch(registryUrl);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const responseText = await response.text();
+    const registryData: RegistryData = JSON.parse(responseText);
+
+    if (!registryData.plugins || !registryData.plugins[pluginName]) {
+      return null;
+    }
+
+    const pluginData = registryData.plugins[pluginName];
+
+    if (pluginData.deprecated) {
+      return null;
+    }
+
+    if (!pluginData.versions || !Array.isArray(pluginData.versions) || pluginData.versions.length === 0) {
+      return null;
+    }
+
+    let targetVersion: VersionData | undefined;
+    if (version && version !== 'latest') {
+      targetVersion = pluginData.versions.find((v: VersionData) => v.version === version && !v.deprecated);
+    } else {
+      const availableVersions = pluginData.versions.filter((v: VersionData) => !v.deprecated);
+      if (availableVersions.length === 0) {
+        return null;
+      }
+      targetVersion = availableVersions[availableVersions.length - 1];
+    }
+
+    if (!targetVersion) {
+      return null;
+    }
+
+    const metadataUrl = `https://raw.githubusercontent.com/vihoman/registry-test/main/plugins/${pluginName}/metadata.json`;
+    let environment: PluginEnvironment | undefined = undefined;
+    let settings: PluginSettings | undefined = undefined;
+
+    try {
+      const metadataResponse = await fetch(metadataUrl);
+      if (metadataResponse.ok) {
+        const metadataText = await metadataResponse.text();
+        const metadata: PluginMetadata = JSON.parse(metadataText);
+
+        if (metadata.environment && typeof metadata.environment === 'object' && !Array.isArray(metadata.environment)) {
+          environment = metadata.environment;
+        }
+
+        if (metadata.settings && typeof metadata.settings === 'object') {
+          settings = metadata.settings;
+        }
+      }
+    } catch {
+      // Silent fallback - metadata fetch failed
+    }
+
+    if (!environment && pluginData.environment && typeof pluginData.environment === 'object') {
+      environment = pluginData.environment;
+    }
+
+    if (!settings && pluginData.settings && typeof pluginData.settings === 'object') {
+      settings = pluginData.settings;
+    }
+
+    return {
+      version: targetVersion.version,
+      environment,
+      settings
+    };
+
+  } catch {
+    return null;
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const method = event.node.req.method;
-  const configPath = path.resolve("plugins", "plugins.json");
+  const configPath = path.resolve("plugins", "plugins.yaml");
 
-  // GET request - return the current configuration
   if (method === "GET") {
     try {
       if (fs.existsSync(configPath)) {
         const content = fs.readFileSync(configPath, "utf8");
-        return JSON.parse(content);
+        return yaml.parse(content);
       } else {
         const defaultConfig: PluginConfig = {
-          plugins: [],
+          plugins: {},
           metadata: {
             lastUpdated: new Date().toISOString(),
             version: "1.0.0"
@@ -32,7 +176,6 @@ export default defineEventHandler(async (event) => {
         return defaultConfig;
       }
     } catch (error) {
-      console.error("Error reading plugin configuration:", error);
       event.node.res.statusCode = 500;
       return {
         error: `Failed to read configuration: ${(error as Error).message}`,
@@ -40,7 +183,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // POST request - save new configuration
   if (method === "POST") {
     try {
       const pluginsDir = path.dirname(configPath);
@@ -50,28 +192,150 @@ export default defineEventHandler(async (event) => {
 
       const body = await readBody(event);
 
+      if (body.action === 'add-plugin') {
+        const pluginData: AddPluginRequest = body.plugin;
+
+        if (!pluginData.name || !pluginData.version) {
+          event.node.res.statusCode = 400;
+          return {
+            error: "Invalid plugin data: name and version are required"
+          };
+        }
+
+        let config: PluginConfig = { plugins: {} };
+        if (fs.existsSync(configPath)) {
+          const content = fs.readFileSync(configPath, "utf8");
+          config = yaml.parse(content);
+        }
+
+        if (config.plugins[pluginData.name]) {
+          event.node.res.statusCode = 409;
+          return {
+            error: "Plugin already installed"
+          };
+        }
+
+        const now = new Date().toISOString();
+        const registryData = await fetchPluginDataFromRegistry(pluginData.name, pluginData.version);
+
+        const newPluginData: Omit<InstalledPlugin, 'name'> & { dependencies?: Array<{ name: string; url?: string; version?: string; }> } = {
+          version: registryData?.version || pluginData.version,
+          enabled: pluginData.enabled !== undefined ? pluginData.enabled : true,
+          installedAt: now,
+          ...(registryData?.environment || pluginData.environment ? {
+            environment: {
+              ...(registryData?.environment || {}),
+              ...(pluginData.environment || {})
+            }
+          } : {}),
+          ...(pluginData.settings && Object.keys(pluginData.settings).length > 0 && {
+            settings: pluginData.settings
+          })
+        };
+
+        config.plugins[pluginData.name] = newPluginData;
+
+        if (pluginData.dependencies && pluginData.dependencies.length > 0) {
+          const dependencyPromises = pluginData.dependencies.map(async (dep) => {
+            if (!config.plugins[dep.name]) {
+              const depRegistryData = await fetchPluginDataFromRegistry(dep.name, dep.version);
+
+              if (!depRegistryData) {
+                return null;
+              }
+
+              const dependencyPluginData: Omit<InstalledPlugin, 'name'> = {
+                version: depRegistryData.version,
+                enabled: true,
+                installedAt: now,
+                ...(depRegistryData.environment && Object.keys(depRegistryData.environment).length > 0 && {
+                  environment: depRegistryData.environment
+                })
+              };
+
+              return { name: dep.name, data: dependencyPluginData };
+            }
+            return null;
+          });
+
+          const resolvedDependencies = await Promise.all(dependencyPromises);
+
+          resolvedDependencies.forEach(dep => {
+            if (dep) {
+              config.plugins[dep.name] = dep.data;
+            }
+          });
+        }
+
+        config.metadata = {
+          lastUpdated: now,
+          version: config.metadata?.version || "1.0.0"
+        };
+
+        fs.writeFileSync(configPath, yaml.stringify(config, {
+          indent: 2,
+          lineWidth: 0,
+          minContentWidth: 0,
+          doubleQuotedAsJSON: false
+        }));
+
+        return {
+          success: true,
+          message: `Plugin ${pluginData.name} installed successfully`,
+          plugin: { name: pluginData.name, ...newPluginData },
+          dependenciesInstalled: pluginData.dependencies?.length || 0
+        };
+      }
+
       let config: PluginConfig;
       if (typeof body === 'string') {
-        config = JSON.parse(body);
+        config = yaml.parse(body);
       } else {
         config = body;
       }
 
-      if (!config.plugins || !Array.isArray(config.plugins)) {
+      if (!config.plugins) {
         event.node.res.statusCode = 400;
         return {
-          error: "Invalid configuration: plugins array is required"
+          error: "Invalid configuration: plugins object is required"
         };
       }
 
-      // Validate plugin structure
-      for (const plugin of config.plugins) {
-        if (!plugin.name || !plugin.version) {
-          event.node.res.statusCode = 400;
-          return {
-            error: "Invalid plugin structure: name and version are required"
-          };
+      if (Array.isArray(config.plugins)) {
+        event.node.res.statusCode = 400;
+        return {
+          error: "Invalid configuration: plugins must be an object, not an array"
+        };
+      }
+
+      try {
+        for (const [pluginName, pluginData] of Object.entries(config.plugins)) {
+          if (!pluginName || typeof pluginName !== 'string') {
+            event.node.res.statusCode = 400;
+            return {
+              error: "Invalid plugin structure: plugin name must be a valid string"
+            };
+          }
+
+          if (!pluginData || typeof pluginData !== 'object') {
+            event.node.res.statusCode = 400;
+            return {
+              error: `Invalid plugin structure for ${pluginName}: plugin data must be an object`
+            };
+          }
+
+          if (!pluginData.version || typeof pluginData.version !== 'string') {
+            event.node.res.statusCode = 400;
+            return {
+              error: `Invalid plugin structure for ${pluginName}: version is required and must be a string`
+            };
+          }
         }
+      } catch (error) {
+        event.node.res.statusCode = 400;
+        return {
+          error: `Invalid plugin structure: ${(error as Error).message}`
+        };
       }
 
       config.metadata = {
@@ -79,11 +343,15 @@ export default defineEventHandler(async (event) => {
         version: config.metadata?.version || "1.0.0"
       };
 
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      fs.writeFileSync(configPath, yaml.stringify(config, {
+        indent: 2,
+        lineWidth: 0,
+        minContentWidth: 0,
+        doubleQuotedAsJSON: false
+      }));
 
       return { success: true, message: "Configuration saved successfully" };
     } catch (error) {
-      console.error("Error saving plugin configuration:", error);
       event.node.res.statusCode = 500;
       return {
         success: false,
@@ -92,56 +360,102 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // PUT request - update specific plugin
   if (method === "PUT") {
     try {
       const body = await readBody(event);
-      const { pluginName, updates } = body;
+      const { pluginName, updates }: { pluginName: string; updates: PluginUpdateRequest } = body;
 
       if (!pluginName) {
         event.node.res.statusCode = 400;
         return { error: "Plugin name is required" };
       }
 
-      let config: PluginConfig = { plugins: [] };
+      let config: PluginConfig = { plugins: {} };
 
       if (fs.existsSync(configPath)) {
         const content = fs.readFileSync(configPath, "utf8");
-        config = JSON.parse(content);
+        config = yaml.parse(content);
       }
 
-      const pluginIndex = config.plugins.findIndex(p => p.name === pluginName);
-
-      if (pluginIndex === -1) {
+      if (!config.plugins[pluginName]) {
         event.node.res.statusCode = 404;
         return { error: "Plugin not found" };
       }
 
-      // Merge updates while preserving required fields
-      config.plugins[pluginIndex] = {
-        ...config.plugins[pluginIndex],
-        ...updates,
-        // Ensure required fields are not removed
-        name: config.plugins[pluginIndex].name,
-        version: updates.version || config.plugins[pluginIndex].version,
-        enabled: updates.enabled !== undefined ? updates.enabled : config.plugins[pluginIndex].enabled,
-        installedAt: config.plugins[pluginIndex].installedAt
+      const currentPlugin = config.plugins[pluginName];
+      const updatedPluginData: Omit<InstalledPlugin, 'name'> & { dependencies?: Array<{ name: string; url?: string; version?: string; }> } = {
+        version: currentPlugin.version,
+        enabled: currentPlugin.enabled,
+        installedAt: currentPlugin.installedAt
       };
+
+      // Handle environment updates
+      if ('environment' in updates) {
+        if (updates.environment === undefined || updates.environment === null) {
+          // Environment will be omitted from updatedPluginData
+        } else if (updates.environment && typeof updates.environment === 'object') {
+          if (Object.keys(updates.environment).length > 0) {
+            updatedPluginData.environment = {
+              ...(currentPlugin.environment || {}),
+              ...updates.environment
+            };
+          }
+        }
+      } else if (currentPlugin.environment) {
+        updatedPluginData.environment = currentPlugin.environment;
+      }
+
+      // Handle settings updates
+      if ('settings' in updates) {
+        if (updates.settings === undefined || updates.settings === null) {
+          // Settings will be omitted from updatedPluginData
+        } else if (updates.settings && typeof updates.settings === 'object') {
+          if (Object.keys(updates.settings).length > 0) {
+            updatedPluginData.settings = updates.settings;
+          }
+        }
+      } else if (currentPlugin.settings) {
+        updatedPluginData.settings = currentPlugin.settings;
+      }
+
+      // Handle enabled updates
+      if ('enabled' in updates && updates.enabled !== undefined) {
+        updatedPluginData.enabled = updates.enabled;
+      }
+
+      // Handle dependencies updates
+      if ('dependencies' in updates) {
+        if (updates.dependencies === undefined || updates.dependencies === null) {
+          // Dependencies will be omitted from updatedPluginData
+        } else if (Array.isArray(updates.dependencies) && updates.dependencies.length > 0) {
+          updatedPluginData.dependencies = updates.dependencies;
+        }
+      } else if ('dependencies' in currentPlugin && currentPlugin.dependencies) {
+        updatedPluginData.dependencies = Array.isArray(currentPlugin.dependencies)
+            ? currentPlugin.dependencies
+            : [];
+      }
+
+      config.plugins[pluginName] = updatedPluginData;
 
       config.metadata = {
         lastUpdated: new Date().toISOString(),
         version: config.metadata?.version || "1.0.0"
       };
 
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      fs.writeFileSync(configPath, yaml.stringify(config, {
+        indent: 2,
+        lineWidth: 0,
+        minContentWidth: 0,
+        doubleQuotedAsJSON: false
+      }));
 
       return {
         success: true,
         message: "Plugin updated successfully",
-        plugin: config.plugins[pluginIndex]
+        plugin: { name: pluginName, ...config.plugins[pluginName] }
       };
     } catch (error) {
-      console.error("Error updating plugin configuration:", error);
       event.node.res.statusCode = 500;
       return {
         success: false,
@@ -150,7 +464,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // DELETE request - remove plugin
   if (method === "DELETE") {
     try {
       const url = new URL(event.node.req.url!, `http://${event.node.req.headers.host}`);
@@ -161,34 +474,55 @@ export default defineEventHandler(async (event) => {
         return { error: "Plugin name is required" };
       }
 
-      let config: PluginConfig = { plugins: [] };
+      let config: PluginConfig = { plugins: {} };
 
       if (fs.existsSync(configPath)) {
         const content = fs.readFileSync(configPath, "utf8");
-        config = JSON.parse(content);
+        config = yaml.parse(content);
       }
 
-      const originalLength = config.plugins.length;
-      config.plugins = config.plugins.filter(p => p.name !== pluginName);
-
-      if (config.plugins.length === originalLength) {
+      if (!config.plugins[pluginName]) {
         event.node.res.statusCode = 404;
         return { error: "Plugin not found" };
       }
+
+      const originalCount = Object.keys(config.plugins).length;
+
+      // Create new plugins object without the target plugin
+      const { [pluginName]: removedPlugin, ...remainingPlugins } = config.plugins;
+
+      // Find and remove dependent plugins
+      const pluginsToKeep: Record<string, Omit<InstalledPlugin, 'name'>> = {};
+
+      for (const [key, plugin] of Object.entries(remainingPlugins)) {
+        const extendedPlugin = plugin as ExtendedInstalledPlugin;
+        if (!(extendedPlugin.isDependency && extendedPlugin.dependentPlugin === pluginName)) {
+          pluginsToKeep[key] = plugin;
+        }
+      }
+
+      config.plugins = pluginsToKeep;
+
+      const newCount = Object.keys(config.plugins).length;
+      const removedCount = originalCount - newCount;
 
       config.metadata = {
         lastUpdated: new Date().toISOString(),
         version: config.metadata?.version || "1.0.0"
       };
 
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      fs.writeFileSync(configPath, yaml.stringify(config, {
+        indent: 2,
+        lineWidth: 0,
+        minContentWidth: 0,
+        doubleQuotedAsJSON: false
+      }));
 
       return {
         success: true,
-        message: "Plugin removed successfully"
+        message: `Plugin removed successfully${removedCount > 1 ? ` (${removedCount - 1} dependencies also removed)` : ''}`
       };
     } catch (error) {
-      console.error("Error removing plugin:", error);
       event.node.res.statusCode = 500;
       return {
         success: false,
@@ -197,7 +531,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Method not allowed for any other HTTP method
   event.node.res.statusCode = 405;
   return { error: "Method not allowed" };
 });

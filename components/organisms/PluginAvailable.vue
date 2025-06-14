@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { RegistryPlugin } from "~/assets/types/typelist";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Download } from "lucide-vue-next";
 import PluginAvailableCard from "~/components/molecules/PluginAvailableCard.vue";
 
+// Define proper types for plugin-related data
+interface PluginSettings {
+  [key: string]: string | number | boolean | object;
+}
+
+interface PluginEnvironment {
+  [key: string]: string | number | boolean;
+}
+
+interface PluginDependency {
+  name: string;
+  version?: string;
+  optional?: boolean;
+}
+
 interface Props {
   availablePlugins: RegistryPlugin[];
   selectedVersions: { [key: string]: string };
@@ -17,7 +32,15 @@ interface Props {
 }
 
 interface Emits {
-  (e: "add-plugin", pluginName: string): void;
+  (
+      e: "add-plugin",
+      pluginName: string,
+      withSettings?: boolean,
+      settings?: PluginSettings,
+      environment?: PluginEnvironment,
+      dependencies?: PluginDependency[],
+      version?: string
+  ): void;
   (e: "update-version", pluginName: string, version: string): void;
   (e: "refresh-plugins"): void;
 }
@@ -29,7 +52,10 @@ const searchQuery = ref("");
 const selectedTag = ref<string>("");
 const showDeprecated = ref(false);
 
-// Get all unique tags from available plugins
+watch(() => props.availablePlugins, () => {
+  // Watch for plugin updates if needed
+}, { immediate: true });
+
 const allTags = computed(() => {
   const tags = new Set<string>();
   props.availablePlugins.forEach(plugin => {
@@ -38,7 +64,6 @@ const allTags = computed(() => {
   return Array.from(tags).sort();
 });
 
-// Filter plugins based on search query, selected tag, and deprecation status
 const filteredPlugins = computed(() => {
   return props.availablePlugins.filter(plugin => {
     const matchesSearch = !searchQuery.value ||
@@ -60,19 +85,21 @@ const isPluginInstalled = (pluginName: string) => {
   return props.installedPlugins?.includes(pluginName) || false;
 };
 
-const handleAddPlugin = (pluginName: string) => {
-  emit("add-plugin", pluginName);
-};
-
-const handleVersionChange = (pluginName: string, version: string) => {
-  emit("update-version", pluginName, version);
-};
-
 const handleRefresh = () => {
   emit("refresh-plugins");
 };
 
-// Get plugin statistics
+const addPlugin = (
+    pluginName: string,
+    withSettings?: boolean,
+    settings?: PluginSettings,
+    environment?: PluginEnvironment,
+    dependencies?: PluginDependency[],
+    version?: string
+) => {
+  emit("add-plugin", pluginName, withSettings, settings, environment, dependencies, version);
+};
+
 const pluginStats = computed(() => {
   const total = props.availablePlugins.length;
   const deprecated = props.availablePlugins.filter(p => p.deprecated).length;
@@ -125,17 +152,6 @@ const pluginStats = computed(() => {
         </div>
 
         <div class="flex gap-2">
-          <Select v-model="selectedTag">
-            <SelectTrigger class="flex-1">
-              <SelectValue placeholder="Filter by tag" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All tags</SelectItem>
-              <SelectItem v-for="tag in allTags" :key="tag" :value="tag">
-                {{ tag }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
 
           <div class="flex items-center space-x-2">
             <input
@@ -174,8 +190,8 @@ const pluginStats = computed(() => {
             :plugin="plugin"
             :selected-version="selectedVersions[plugin.name]"
             :is-installed="isPluginInstalled(plugin.name)"
-            @add-plugin="handleAddPlugin"
-            @update-version="handleVersionChange"
+            @add-plugin="addPlugin"
+            @update-version="(pluginName, version) => emit('update-version', pluginName, version)"
         />
       </div>
     </CardContent>
