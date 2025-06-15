@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FilterValues } from "@/assets/types/typelist";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,40 +15,87 @@ import {
   type DateValue,
 } from "@internationalized/date";
 import { CalendarIcon, Search } from "lucide-vue-next";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 const df = new DateFormatter("en-US", {
   dateStyle: "long",
 });
+const props = defineProps<{ modelValue: FilterValues }>();
+const emit = defineEmits<{
+  (e: "update:modelValue", value: FilterValues): void;
+  (e: "apply-filter"): void;
+  (e: "search", searchQuery: string): void;
+}>();
+const localFilter = ref<FilterValues>({ ...props.modelValue });
+const searchInput = ref<string>(props.modelValue.searchQuery || "");
 
-const isAutomaticRefresh = ref(true);
-const searchQuery = ref("");
-const logLevels = ref({
-  error: true,
-  warning: true,
-  info: true,
-});
+// Watch for non-search changes and emit immediately
+watch(
+  () => ({
+    logLevels: localFilter.value.logLevels,
+    date: localFilter.value.date,
+  }),
+  () => {
+    emit("update:modelValue", {
+      ...localFilter.value,
+      searchQuery: props.modelValue.searchQuery, // Keep the current applied search
+    });
+  },
+  { deep: true, immediate: false },
+);
 
-const value = ref<DateValue>();
+// Sync with parent changes
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    localFilter.value = { ...newValue };
+    searchInput.value = newValue.searchQuery || "";
+  },
+  { deep: true },
+);
+
+// Handle date selection - ensure reactivity
+const handleDateChange = (date: DateValue | undefined) => {
+  localFilter.value = {
+    ...localFilter.value,
+    date: date || undefined,
+  };
+};
+
+// Handle search button click
+const handleSearch = () => {
+  emit("search", searchInput.value);
+};
+// Search input uses v-model directly - no handler needed
 </script>
-
 <template>
   <div>
-    <div class="flex items-center gap-2 mb-2">
-      <Checkbox id="automatic-refresh" v-model="isAutomaticRefresh" label="Automatic refresh"/>
-      <label for="automatic-refresh" class="ml-2">Automatic refresh</label>
-    </div>
-    <div class="flex flex-wrap gap-4 items-center">
-      <!-- Search input -->
-      <div class="relative w-full max-w-sm">
-        <Input id="search" v-model="searchQuery" type="text" placeholder="Search..." class="pl-10" />
-        <span
-          class="absolute left-0 inset-y-0 flex items-center justify-center px-2"
+    <div class="flex flex-wrap gap-4 items-center justify-between">
+      <!-- Search input with button -->
+      <div class="flex w-full max-w-sm">
+        <div class="relative flex-1">
+          <Input
+            id="search"
+            v-model="searchInput"
+            type="text"
+            placeholder="Search..."
+            class="pl-10 rounded-r-none border-r-0"
+            @keyup.enter="handleSearch"
+          />
+          <span
+            class="absolute left-0 inset-y-0 flex items-center justify-center px-2"
+          >
+            <Search class="size-6 text-muted-foreground" />
+          </span>
+        </div>
+        <Button
+          @click="handleSearch"
+          class="rounded-l-none px-3"
+          variant="outline"
         >
-          <Search class="size-6 text-muted-foreground" />
-        </span>
+          <Search class="h-4 w-4" />
+        </Button>
       </div>
-
       <!-- Date picker -->
       <div>
         <Popover>
@@ -55,36 +103,54 @@ const value = ref<DateValue>();
             <Button variant="outline" class="flex items-center">
               <CalendarIcon class="mr-2 h-4 w-4" />
               {{
-                value
-                  ? df.format(value.toDate(getLocalTimeZone()))
+                localFilter.date
+                  ? df.format(localFilter.date.toDate(getLocalTimeZone()))
                   : "Pick a date"
               }}
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0 mt-2">
-            <Calendar v-model="value" initial-focus />
+            <Calendar
+              :model-value="localFilter.date"
+              @update:model-value="handleDateChange"
+            />
+            <div class="flex justify-end p-2 border-t">
+              <Button size="sm" @click="handleDateChange(undefined)">
+                Clear
+              </Button>
+            </div>
           </PopoverContent>
         </Popover>
       </div>
     </div>
-
     <!-- Log level checkboxes -->
-    <div class="flex items-center mt-2 gap-55">
+    <div class="flex items-center mt-2 justify-between">
       <ul class="flex items-center gap-6 flex-wrap mt-4">
         <li class="flex items-center gap-2">
-          <Checkbox id="error" v-model="logLevels.error" label="error" />
+          <Checkbox
+            id="error"
+            :key="`error-${localFilter.logLevels.error}`"
+            v-model="localFilter.logLevels.error"
+          />
           <label for="error">Error</label>
         </li>
         <li class="flex items-center gap-2">
-          <Checkbox id="warning" v-model="logLevels.warning" label="warning" />
+          <Checkbox
+            id="warning"
+            :key="`warning-${localFilter.logLevels.warning}`"
+            v-model="localFilter.logLevels.warning"
+          />
           <label for="warning">Warning</label>
         </li>
         <li class="flex items-center gap-2">
-          <Checkbox id="info" v-model="logLevels.info" label="info" />
+          <Checkbox
+            id="info"
+            :key="`info-${localFilter.logLevels.info}`"
+            v-model="localFilter.logLevels.info"
+          />
           <label for="info">Info</label>
         </li>
       </ul>
-      <Button>Filter</Button>
     </div>
   </div>
 </template>
