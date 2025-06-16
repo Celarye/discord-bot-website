@@ -70,7 +70,7 @@ const handleSearch = () => {
 </script>
 <template>
   <div>
-    <div class="flex flex-wrap gap-4 items-center justify-between">
+    <div class="flex flex-wrap gap-4 items-center justify-between max-w-xl">
       <!-- Search input with button -->
       <div class="flex w-full max-w-sm">
         <div class="relative flex-1">

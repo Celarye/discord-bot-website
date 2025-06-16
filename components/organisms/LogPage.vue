@@ -12,7 +12,7 @@ const filter = ref<FilterValues>({
     warning: true,
     info: true,
     debug: true,
-    trace: true,
+    trace: false,
   },
   date: undefined,
 });
@@ -98,7 +98,7 @@ watch(filteredLogs, (newLogs) => {
 </script>
 
 <template>
-  <div class="space-y-6 p-4 max-w-3xl mx-auto">
+  <div class="space-y-6 mx-auto">
     <LogFilter v-model="filter" @search="handleSearch" />
     <LogList :logs="filteredLogs" />
   </div>
