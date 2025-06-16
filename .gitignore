@@ -23,3 +23,4 @@ logs
 .env.*
 !.env.example
 plugins.yaml
+config.yaml

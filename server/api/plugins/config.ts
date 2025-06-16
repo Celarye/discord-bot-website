@@ -165,7 +165,7 @@ async function fetchPluginDataFromRegistry(pluginName: string): Promise<{
 
 export default defineEventHandler(async (event) => {
   const method = event.node.req.method;
-  const configPath = path.resolve("plugins", "plugins.yaml");
+  const configPath = path.resolve('config.yaml');
 
   if (method === "GET") {
     try {
