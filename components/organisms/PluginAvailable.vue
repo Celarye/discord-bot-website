@@ -3,7 +3,6 @@ import { computed, ref, watch } from "vue";
 import type { RegistryPlugin } from "~/assets/types/typelist";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Search, Download } from "lucide-vue-next";
@@ -56,13 +55,6 @@ watch(() => props.availablePlugins, () => {
   // Watch for plugin updates if needed
 }, { immediate: true });
 
-const allTags = computed(() => {
-  const tags = new Set<string>();
-  props.availablePlugins.forEach(plugin => {
-    plugin.tags?.forEach(tag => tags.add(tag));
-  });
-  return Array.from(tags).sort();
-});
 
 const filteredPlugins = computed(() => {
   return props.availablePlugins.filter(plugin => {

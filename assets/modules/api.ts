@@ -9,10 +9,15 @@ const REGISTRY_CONFIG = {
   },
   // For git repository (example URLs - replace with actual repository URLs)
   git: {
-    baseUrl: "https://raw.githubusercontent.com/vihoman/registry-test/main/",
+    baseUrl: "https://raw.githubusercontent.com/Celarye/discord-bot-plugins/refs/heads/master/",
     type: "git" as const
   }
 };
+
+interface VersionData {
+  version: string;
+  deprecated?: boolean;
+}
 
 // Switch between local and git by changing this key
 const CURRENT_CONFIG_KEY: keyof typeof REGISTRY_CONFIG = "git"; // Change to "local" for development
@@ -60,20 +65,76 @@ interface ExtendedPluginMetadata extends PluginMetadata {
 }
 
 /**
+ * Get the latest version for a plugin from the registry
+ */
+async function getLatestPluginVersion(pluginName: string): Promise<string | null> {
+  try {
+    const registry = await fetchRegistry();
+    const pluginData = registry.plugins[pluginName];
+
+    if (!pluginData || !pluginData.versions || !Array.isArray(pluginData.versions) || pluginData.versions.length === 0) {
+      return null;
+    }
+
+    // Filter out deprecated versions
+    const availableVersions = pluginData.versions.filter((v: VersionData) => !v.deprecated);
+    if (availableVersions.length === 0) {
+      return null;
+    }
+
+    // Sort versions to get the latest one (semantic version sorting)
+    const sortedVersions = availableVersions.sort((a :VersionData, b: VersionData) => {
+      const versionA = a.version.split('.').map(num => parseInt(num, 10));
+      const versionB = b.version.split('.').map(num => parseInt(num, 10));
+
+      for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
+        const numA = versionA[i] || 0;
+        const numB = versionB[i] || 0;
+
+        if (numA !== numB) {
+          return numA - numB;
+        }
+      }
+      return 0;
+    });
+
+    // Get the latest (highest) version
+    const latestVersion = sortedVersions[sortedVersions.length - 1];
+    return latestVersion.version;
+  } catch (error) {
+    console.error(`Error getting latest version for ${pluginName}:`, error);
+    return null;
+  }
+}
+
+/**
  * Fetch plugin metadata from individual metadata file
  */
 async function fetchPluginMetadata(pluginName: string): Promise<PluginMetadata> {
   try {
     const config = getCurrentConfig();
-    const url = config.type === "local"
-        ? `${config.baseUrl}/plugins/${pluginName}/metadata.json`
-        : `${config.baseUrl}/plugins/${pluginName}/metadata.json`;
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch metadata for ${pluginName}: ${response.statusText}`);
+    if (config.type === "local") {
+      const url = `${config.baseUrl}${pluginName}/metadata.json`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch metadata for ${pluginName}: ${response.statusText}`);
+      }
+      return await response.json();
+    } else {
+      // For git-based registry, we need to get the latest version first
+      const latestVersion = await getLatestPluginVersion(pluginName);
+      if (!latestVersion) {
+        throw new Error(`No valid version found for plugin ${pluginName}`);
+      }
+
+      const url = `${config.baseUrl}${pluginName}/${latestVersion}/metadata.json`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch metadata for ${pluginName} v${latestVersion}: ${response.statusText}`);
+      }
+      return await response.json();
     }
-    return await response.json();
   } catch (error) {
     console.error(`Error fetching metadata for ${pluginName}:`, error);
     throw error;
@@ -87,8 +148,8 @@ export async function fetchRegistry(): Promise<PluginRegistry> {
   try {
     const config = getCurrentConfig();
     const url = config.type === "local"
-        ? `${config.baseUrl}/registry.json`
-        : `${config.baseUrl}/registry.json`;
+        ? `${config.baseUrl}/plugins.json`
+        : `${config.baseUrl}plugins.json`;
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -108,7 +169,6 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
   try {
     const registry = await fetchRegistry();
     const plugins: RegistryPlugin[] = [];
-
     // process plugin 1 by 1
     for (const [pluginName, pluginData] of Object.entries(registry.plugins)) {
       try {
@@ -172,7 +232,7 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
     const config = getCurrentConfig();
 
     if (config.type === "local") {
-      const response = await fetch(`${config.baseUrl}/registry/plugins/${pluginName}`);
+      const response = await fetch(`${config.baseUrl}/registry/${pluginName}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error(`Plugin '${pluginName}' not found`);
@@ -363,7 +423,7 @@ export async function checkRegistryHealth(): Promise<boolean> {
       return response.ok;
     } else {
       // For git-based registry, check if registry.json is accessible
-      const response = await fetch(`${config.baseUrl}/registry.json`);
+      const response = await fetch(`${config.baseUrl}plugins.json`);
       return response.ok;
     }
   } catch (error) {

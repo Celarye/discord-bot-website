@@ -70,13 +70,13 @@ interface ExtendedInstalledPlugin extends Omit<InstalledPlugin, 'name'> {
   dependentPlugin?: string;
 }
 
-async function fetchPluginDataFromRegistry(pluginName: string, version?: string): Promise<{
+async function fetchPluginDataFromRegistry(pluginName: string): Promise<{
   version: string;
   environment?: PluginEnvironment;
   settings?: PluginSettings;
 } | null> {
   try {
-    const registryUrl = `https://raw.githubusercontent.com/vihoman/registry-test/main/registry.json`;
+    const registryUrl = `https://raw.githubusercontent.com/Celarye/discord-bot-plugins/refs/heads/master/plugins.json`;
     const response = await fetch(registryUrl);
 
     if (!response.ok) {
@@ -92,30 +92,42 @@ async function fetchPluginDataFromRegistry(pluginName: string, version?: string)
 
     const pluginData = registryData.plugins[pluginName];
 
-    if (pluginData.deprecated) {
-      return null;
-    }
-
     if (!pluginData.versions || !Array.isArray(pluginData.versions) || pluginData.versions.length === 0) {
       return null;
     }
 
-    let targetVersion: VersionData | undefined;
-    if (version && version !== 'latest') {
-      targetVersion = pluginData.versions.find((v: VersionData) => v.version === version && !v.deprecated);
-    } else {
-      const availableVersions = pluginData.versions.filter((v: VersionData) => !v.deprecated);
-      if (availableVersions.length === 0) {
-        return null;
-      }
-      targetVersion = availableVersions[availableVersions.length - 1];
+    // Always get the latest version by sorting versions semantically
+    const availableVersions = pluginData.versions.filter((v: VersionData) => !v.deprecated);
+    if (availableVersions.length === 0) {
+      return null;
     }
+
+    // Sort versions to get the latest one (semantic version sorting)
+    const sortedVersions = availableVersions.sort((a: VersionData, b: VersionData) => {
+      const versionA = a.version.split('.').map((num: string) => parseInt(num, 10));
+      const versionB = b.version.split('.').map((num: string) => parseInt(num, 10));
+
+      for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
+        const numA = versionA[i] || 0;
+        const numB = versionB[i] || 0;
+
+        if (numA !== numB) {
+          return numA - numB;
+        }
+      }
+      return 0;
+    });
+
+    // Get the latest (highest) version
+    const targetVersion = sortedVersions[sortedVersions.length - 1];
 
     if (!targetVersion) {
       return null;
     }
+    console.log("target version" + targetVersion.version)
 
-    const metadataUrl = `https://raw.githubusercontent.com/vihoman/registry-test/main/plugins/${pluginName}/metadata.json`;
+    // Updated metadata URL to include the version in the path
+    const metadataUrl = `https://raw.githubusercontent.com/Celarye/discord-bot-plugins/refs/heads/master/${pluginName}/${targetVersion.version}/metadata.json`;
     let environment: PluginEnvironment | undefined = undefined;
     let settings: PluginSettings | undefined = undefined;
 
@@ -137,13 +149,8 @@ async function fetchPluginDataFromRegistry(pluginName: string, version?: string)
       // Silent fallback - metadata fetch failed
     }
 
-    if (!environment && pluginData.environment && typeof pluginData.environment === 'object') {
-      environment = pluginData.environment;
-    }
-
-    if (!settings && pluginData.settings && typeof pluginData.settings === 'object') {
-      settings = pluginData.settings;
-    }
+    // Since the registry doesn't contain environment/settings, we only get them from metadata.json
+    // Remove the fallback to pluginData properties since they don't exist in this registry structure
 
     return {
       version: targetVersion.version,
@@ -216,7 +223,7 @@ export default defineEventHandler(async (event) => {
         }
 
         const now = new Date().toISOString();
-        const registryData = await fetchPluginDataFromRegistry(pluginData.name, pluginData.version);
+        const registryData = await fetchPluginDataFromRegistry(pluginData.name);
 
         const newPluginData: Omit<InstalledPlugin, 'name'> & { dependencies?: Array<{ name: string; url?: string; version?: string; }> } = {
           version: registryData?.version || pluginData.version,
@@ -238,7 +245,7 @@ export default defineEventHandler(async (event) => {
         if (pluginData.dependencies && pluginData.dependencies.length > 0) {
           const dependencyPromises = pluginData.dependencies.map(async (dep) => {
             if (!config.plugins[dep.name]) {
-              const depRegistryData = await fetchPluginDataFromRegistry(dep.name, dep.version);
+              const depRegistryData = await fetchPluginDataFromRegistry(dep.name);
 
               if (!depRegistryData) {
                 return null;

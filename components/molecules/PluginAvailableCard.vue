@@ -226,16 +226,15 @@ const openExternalUrl = (url: string): void => {
         </div>
       </div>
 
-      <div v-if="hasDependencies" class="p-3 bg-blue-50 rounded-md border border-blue-200">
-        <div class="flex items-center gap-2 text-sm">
-          <Download class="h-4 w-4 text-blue-600" />
-          <span class="font-medium text-blue-800">Dependencies:</span>
-        </div>
-        <div class="mt-1 text-xs text-blue-700">
-          {{ plugin.dependencies?.map(dep => dep.name).join(', ') }} will be installed automatically
-        </div>
+      <div v-if="hasDependencies" class="p-3 bg-blue-50 dark:bg-blue-950/50 rounded-md border border-blue-200 dark:border-blue-800">
+      <div class="flex items-center gap-2 text-sm">
+        <Download class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <span class="font-medium text-blue-800 dark:text-blue-200">Dependencies:</span>
       </div>
-
+      <div class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+        {{ plugin.dependencies?.map(dep => dep.name).join(', ') }} will be installed automatically
+      </div>
+    </div>
       <div v-if="hasSettings || hasEnvironment" class="p-3 bg-amber-50 rounded-md border border-amber-200">
         <div class="flex items-center gap-2 text-sm">
           <Settings class="h-4 w-4 text-amber-600" />

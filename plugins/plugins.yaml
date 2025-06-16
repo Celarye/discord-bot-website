@@ -1,24 +1,4 @@
-plugins:
-  example-plugin:
-    version: v1.1.0
-    enabled: true
-    installedAt: 2025-06-14T00:16:00.201Z
-    environment:
-      DISCORD_BOT_TOKEN: ja dit zo
-      ENABLE_LOGGING: false
-      AUDIT_WEBHOOK_URL: een url
-    settings:
-      log_channel_id: yoman
-      log_message_edits: true
-      log_message_deletes: true
-  core-logger:
-    version: v2.0.0
-    enabled: true
-    installedAt: 2025-06-14T00:16:00.201Z
-    environment:
-      ENABLE_REMOTE_LOGGING: true
-      REMOTE_LOG_URL: string
-      LOG_FILE_SECRET: string
+plugins: {}
 metadata:
-  lastUpdated: 2025-06-14T00:16:00.201Z
+  lastUpdated: 2025-06-16T19:17:20.676Z
   version: 1.0.0

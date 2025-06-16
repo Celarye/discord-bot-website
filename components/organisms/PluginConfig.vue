@@ -3,12 +3,11 @@ import { fetchAvailable, checkRegistryHealth } from "~/assets/modules/api";
 import type { RegistryPlugin, InstalledPlugin } from "~/assets/types/typelist";
 import PluginAvailable from "~/components/organisms/PluginAvailable.vue";
 import PluginInstalled from "~/components/organisms/PluginInstalled.vue";
-import { onMounted, ref, watch, computed } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
@@ -43,11 +42,11 @@ interface PluginDependency {
 }
 
 const fileContent = ref<string | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+const hasFileSelected = ref<boolean>(false);
 const plugins = ref<Record<string, Omit<InstalledPlugin, 'name'>>>({});
 const availablePlugins = ref<RegistryPlugin[]>([]);
 const selectedVersions = ref<{ [key: string]: string }>({});
-const jsonString = ref<string>("");
-const activeTab = ref<string>("config");
 const isLoading = ref<boolean>(true);
 const error = ref<string | null>(null);
 const isRegistryOnline = ref<boolean>(false);
@@ -68,14 +67,6 @@ const installedPluginsCount = computed(() => Object.keys(plugins.value).length);
 onMounted(async () => {
   await initializePluginManager();
 });
-
-watch(
-    plugins,
-    () => {
-      updateJsonString();
-    },
-    { deep: true }
-);
 
 async function initializePluginManager() {
   isLoading.value = true;
@@ -119,7 +110,6 @@ async function loadExistingConfig() {
     if (!response.ok) {
       if (response.status === 404) {
         plugins.value = {};
-        updateJsonString();
         return;
       }
       throw new Error(`Failed to load configuration: ${response.statusText}`);
@@ -140,18 +130,67 @@ async function loadExistingConfig() {
       } else {
         plugins.value = config.plugins;
       }
-      updateJsonString();
     }
   } catch (err) {
     console.warn("Could not load existing configuration:", err);
   }
 }
 
+// Parse YAML content to JavaScript object
+const parseYaml = (yamlContent: string): PluginConfig => {
+  // Simple YAML parser - you might want to use a proper YAML library like js-yaml
+  const lines = yamlContent.split('\n');
+  const config: PluginConfig = { plugins: {} };
+
+  let currentPlugin: string | null = null;
+  let currentSection: string | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const indent = line.length - line.trimStart().length;
+
+    if (trimmed === 'plugins:') {
+      currentSection = 'plugins';
+      continue;
+    }
+
+    if (trimmed === 'metadata:') {
+      currentSection = 'metadata';
+      continue;
+    }
+
+    if (currentSection === 'plugins' && indent === 2 && trimmed.endsWith(':')) {
+      currentPlugin = trimmed.slice(0, -1);
+      config.plugins[currentPlugin] = { version: '', enabled: true };
+      continue;
+    }
+
+    if (currentPlugin && indent === 4) {
+      const [key, ...valueParts] = trimmed.split(':');
+      const value = valueParts.join(':').trim().replace(/^["']|["']$/g, '');
+
+      if (key === 'version') {
+        config.plugins[currentPlugin].version = value;
+      } else if (key === 'enabled') {
+        config.plugins[currentPlugin].enabled = value === 'true';
+      }
+    }
+  }
+
+  return config;
+};
+
 const openFile = async (event: Event) => {
   const input = event.target as HTMLInputElement;
-  if (!input.files?.length) return;
+  if (!input.files?.length) {
+    hasFileSelected.value = false;
+    return;
+  }
 
   const file = input.files[0];
+  hasFileSelected.value = true;
   const reader = new FileReader();
 
   reader.onload = async (e) => {
@@ -159,10 +198,17 @@ const openFile = async (event: Event) => {
       const content = e.target?.result as string;
       let configData: PluginConfig;
 
+      // Check file extension to determine format
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
       try {
-        configData = JSON.parse(content);
+        if (fileExtension === 'yaml' || fileExtension === 'yml') {
+          configData = parseYaml(content);
+        } else {
+          configData = JSON.parse(content);
+        }
       } catch {
-        throw new Error("Invalid JSON format");
+        throw new Error(`Invalid ${fileExtension?.toUpperCase() || 'file'} format`);
       }
 
       if (configData && configData.plugins) {
@@ -181,7 +227,6 @@ const openFile = async (event: Event) => {
           plugins.value = configData.plugins;
         }
 
-        updateJsonString();
         error.value = null;
       } else {
         throw new Error("Invalid configuration structure");
@@ -369,6 +414,7 @@ const addPlugin = async (
     const result = await response.json();
 
     if (result.success) {
+      // Only reload the config, not the entire registry
       await loadExistingConfig();
       error.value = null;
     } else {
@@ -397,7 +443,8 @@ const updateSelectedVersion = (pluginName: string, version: string) => {
   selectedVersions.value[pluginName] = version;
 };
 
-const updateJsonString = () => {
+// Convert plugins object to YAML format
+const convertToYaml = (): string => {
   try {
     const config: PluginConfig = {
       plugins: plugins.value,
@@ -406,18 +453,60 @@ const updateJsonString = () => {
         version: "1.0.0"
       }
     };
-    jsonString.value = JSON.stringify(config, null, 2);
+
+    // Simple YAML conversion (you might want to use a proper YAML library like js-yaml)
+    let yaml = "plugins:\n";
+
+    Object.entries(config.plugins).forEach(([name, plugin]) => {
+      yaml += `  ${name}:\n`;
+      yaml += `    version: "${plugin.version}"\n`;
+      yaml += `    enabled: ${plugin.enabled}\n`;
+
+      if (plugin.settings && Object.keys(plugin.settings).length > 0) {
+        yaml += `    settings:\n`;
+        Object.entries(plugin.settings).forEach(([key, value]) => {
+          yaml += `      ${key}: ${typeof value === 'string' ? `"${value}"` : value}\n`;
+        });
+      }
+
+      if (plugin.environment && Object.keys(plugin.environment).length > 0) {
+        yaml += `    environment:\n`;
+        Object.entries(plugin.environment).forEach(([key, value]) => {
+          yaml += `      ${key}: ${typeof value === 'string' ? `"${value}"` : value}\n`;
+        });
+      }
+
+      if (plugin.dependencies && plugin.dependencies.length > 0) {
+        yaml += `    dependencies:\n`;
+        plugin.dependencies.forEach((dep) => {
+          yaml += `      - name: "${dep.name}"\n`;
+          if (dep.version) {
+            yaml += `        version: "${dep.version}"\n`;
+          }
+        });
+      }
+      yaml += "\n";
+    });
+
+    if (config.metadata) {
+      yaml += "metadata:\n";
+      yaml += `  lastUpdated: "${config.metadata.lastUpdated}"\n`;
+      yaml += `  version: "${config.metadata.version}"\n`;
+    }
+
+    return yaml;
   } catch {
-    jsonString.value = "// Error generating JSON";
+    return "# Error generating YAML";
   }
 };
 
 const saveFile = () => {
   try {
-    const blob = new Blob([jsonString.value], { type: "application/json" });
+    const yamlContent = convertToYaml();
+    const blob = new Blob([yamlContent], { type: "application/x-yaml" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "plugins.json";
+    link.download = "plugins.yaml";
     link.click();
     URL.revokeObjectURL(link.href);
   } catch (err) {
@@ -468,13 +557,13 @@ const refreshRegistry = async () => {
 
 <template>
   <Card>
-    <CardContent class="pt-6">
+    <CardContent class="p-6">
       <div v-if="isLoading" class="flex justify-center py-6">
         <Loader2 class="h-12 w-12 animate-spin text-primary" />
       </div>
 
       <div v-else>
-        <div class="space-y-3 mb-6">
+        <div class="space-y-4 mb-6">
           <Alert v-if="error" variant="destructive">
             <AlertTriangle class="h-4 w-4" />
             <AlertDescription>{{ error }}</AlertDescription>
@@ -487,66 +576,69 @@ const refreshRegistry = async () => {
             </AlertDescription>
           </Alert>
 
-          <Alert v-else-if="lastSync" variant="default" class="border-green-200 dark:border-green-800">
-            <CheckCircle class="h-4 w-4 text-green-600" />
-            <AlertDescription>
+          <Alert
+              v-else-if="lastSync"
+              variant="default"
+              class="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20"
+          >
+            <CheckCircle class="h-4 w-4 text-green-600 dark:text-green-400" />
+            <AlertDescription class="text-green-800 dark:text-green-200">
               Registry synced successfully. Last update: {{ new Date(lastSync).toLocaleString() }}
             </AlertDescription>
           </Alert>
+
+          <Button
+              variant="outline"
+              :disabled="isLoading"
+              class="shrink-0"
+              @click="refreshRegistry"
+          >
+            <RefreshCw class="h-4 w-4" />
+          </Button>
         </div>
 
         <div class="mb-6">
-          <label class="block mb-2 font-medium">Upload Configuration</label>
+          <label class="block mb-3 font-medium">Upload Configuration</label>
           <div class="flex gap-2">
-            <Input
-                type="file"
-                accept=".json, .yaml, .yml"
-                class="flex-1"
-                @change="openFile"
-            />
-            <Button
-                variant="outline"
-                :disabled="isLoading"
-                class="shrink-0"
-                @click="refreshRegistry"
-            >
-              <RefreshCw class="h-4 w-4" />
-            </Button>
+            <div class="relative flex-1">
+              <Input
+                  ref="fileInput"
+                  type="file"
+                  accept=".json, .yaml, .yml"
+                  :class="[
+                    'transition-all duration-200',
+                    hasFileSelected
+                      ? 'file:hidden text-sm'
+                      : 'file:mr-4 file:py-2 file:px-4  file:text-sm file:font-semibold '
+                  ]"
+                  @change="openFile"
+              />
+            </div>
           </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2">
-            <Tabs v-model="activeTab" default-value="config" class="mb-3">
-              <TabsList class="grid grid-cols-2">
-                <TabsTrigger value="config">
-                  Configuration
-                  <Badge v-if="installedPluginsCount > 0" variant="secondary" class="ml-2">
-                    {{ installedPluginsCount }}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="json">JSON Preview</TabsTrigger>
-              </TabsList>
+            <div class="mb-4">
+              <div class="flex items-center gap-2 mb-4">
+                <Badge v-if="installedPluginsCount > 0" variant="secondary">
+                  {{ installedPluginsCount }}
+                </Badge>
+              </div>
 
-              <TabsContent value="config">
-                <PluginInstalled
-                    :plugins="plugins"
-                    :registry-plugins="registryPluginsMap"
-                    @delete-plugin="handleDeletePlugin"
-                    @toggle-plugin="togglePlugin"
-                    @configure-plugin="handleConfigurePlugin"
-                />
-              </TabsContent>
+              <PluginInstalled
+                  :plugins="plugins"
+                  :registry-plugins="registryPluginsMap"
+                  @delete-plugin="handleDeletePlugin"
+                  @toggle-plugin="togglePlugin"
+                  @configure-plugin="handleConfigurePlugin"
+              />
+            </div>
 
-              <TabsContent value="json">
-                <pre class="p-4 bg-muted rounded overflow-auto max-h-96 text-sm font-mono">{{ jsonString }}</pre>
-              </TabsContent>
-            </Tabs>
-
-            <div v-if="installedPluginsCount > 0" class="mt-4 flex flex-wrap gap-2">
+            <div v-if="installedPluginsCount > 0" class="mt-6 flex flex-wrap gap-2">
               <Button class="flex items-center gap-2" @click="saveFile">
                 <Download class="h-4 w-4" />
-                Download JSON
+                Download YAML
               </Button>
               <Button class="flex items-center gap-2" @click="saveToServer">
                 <Save class="h-4 w-4" />
@@ -566,7 +658,7 @@ const refreshRegistry = async () => {
             />
 
             <Card v-else class="opacity-60">
-              <CardContent class="pt-6 text-center">
+              <CardContent class="p-6 text-center">
                 <WifiOff class="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p class="font-medium">Registry Offline</p>
                 <p class="text-sm text-muted-foreground">Cannot load available plugins</p>
