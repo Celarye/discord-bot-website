@@ -79,19 +79,14 @@ const handleSearch = () => {
             v-model="searchInput"
             type="text"
             placeholder="Search..."
-            class="pl-10 rounded-r-none border-r-0"
+            class="rounded-r-none border-r-0"
             @keyup.enter="handleSearch"
           />
-          <span
-            class="absolute left-0 inset-y-0 flex items-center justify-center px-2"
-          >
-            <Search class="size-6 text-muted-foreground" />
-          </span>
         </div>
         <Button
-          @click="handleSearch"
           class="rounded-l-none px-3"
           variant="outline"
+          @click="handleSearch"
         >
           <Search class="h-4 w-4" />
         </Button>
@@ -128,27 +123,43 @@ const handleSearch = () => {
       <ul class="flex items-center gap-6 flex-wrap mt-4">
         <li class="flex items-center gap-2">
           <Checkbox
-            id="error"
-            :key="`error-${localFilter.logLevels.error}`"
-            v-model="localFilter.logLevels.error"
+        id="error"
+        :key="`error-${localFilter.logLevels.error}`"
+        v-model="localFilter.logLevels.error"
           />
           <label for="error">Error</label>
         </li>
         <li class="flex items-center gap-2">
           <Checkbox
-            id="warning"
-            :key="`warning-${localFilter.logLevels.warning}`"
-            v-model="localFilter.logLevels.warning"
+        id="warning"
+        :key="`warning-${localFilter.logLevels.warning}`"
+        v-model="localFilter.logLevels.warning"
           />
           <label for="warning">Warning</label>
         </li>
         <li class="flex items-center gap-2">
           <Checkbox
-            id="info"
-            :key="`info-${localFilter.logLevels.info}`"
-            v-model="localFilter.logLevels.info"
+        id="info"
+        :key="`info-${localFilter.logLevels.info}`"
+        v-model="localFilter.logLevels.info"
           />
           <label for="info">Info</label>
+        </li>
+        <li class="flex items-center gap-2">
+          <Checkbox
+        id="debug"
+        :key="`debug-${localFilter.logLevels.debug}`"
+        v-model="localFilter.logLevels.debug"
+          />
+          <label for="debug">Debug</label>
+        </li>
+        <li class="flex items-center gap-2">
+          <Checkbox
+        id="trace"
+        :key="`trace-${localFilter.logLevels.trace}`"
+        v-model="localFilter.logLevels.trace"
+          />
+          <label for="trace">Trace</label>
         </li>
       </ul>
     </div>

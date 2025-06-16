@@ -11,6 +11,8 @@ const filter = ref<FilterValues>({
     error: true,
     warning: true,
     info: true,
+    debug: true,
+    trace: true,
   },
   date: undefined,
 });
@@ -32,6 +34,18 @@ const logs = ref<Log[]>([
     id: "3",
     type: "error",
     message: "This is an error log entry.",
+    timestamp: new Date().toISOString(),
+  },
+  {
+    id: "4",
+    type: "debug",
+    message: "This is a debug log entry.",
+    timestamp: new Date().toISOString(),
+  },
+  {
+    id: "5",
+    type: "trace",
+    message: "This is a trace log entry.",
     timestamp: new Date().toISOString(),
   },
 ]);

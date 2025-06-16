@@ -6,7 +6,7 @@ import LogPage from "~/components/organisms/LogPage.vue";
 <template>
   <div>
     <LogsBreadcrumb />
-    <h2>Logs</h2>
+    <h2 class="text-2xl mb-2 font-semibold">Logs</h2>
     <LogPage />
   </div>
 </template>

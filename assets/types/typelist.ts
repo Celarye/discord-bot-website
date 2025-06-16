@@ -17,13 +17,15 @@ export interface FilterValues {
     error: boolean;
     warning: boolean;
     info: boolean;
+    debug: boolean;
+    trace: boolean;
   };
   date?: DateValue | undefined;
 }
 
 export interface Log {
   id: string;
-  type: "info" | "warning" | "error";
+  type: "info" | "warning" | "error" | "debug" | "trace";
   message: string;
   timestamp: string;
 }
