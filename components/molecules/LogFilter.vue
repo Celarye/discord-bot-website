@@ -15,19 +15,24 @@ import {
   type DateValue,
 } from "@internationalized/date";
 import { CalendarIcon, Search } from "lucide-vue-next";
-import { ref, watch } from "vue";
+import { ref, watch, nextTick } from "vue";
 
 const df = new DateFormatter("en-US", {
   dateStyle: "long",
 });
+
 const props = defineProps<{ modelValue: FilterValues }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: FilterValues): void;
   (e: "apply-filter"): void;
   (e: "search", searchQuery: string): void;
 }>();
+
 const localFilter = ref<FilterValues>({ ...props.modelValue });
 const searchInput = ref<string>(props.modelValue.searchQuery || "");
+
+// Flag to prevent recursive updates
+let isUpdatingFromParent = false;
 
 // Watch for non-search changes and emit immediately
 watch(
@@ -36,8 +41,11 @@ watch(
     date: localFilter.value.date,
   }),
   () => {
+    if (isUpdatingFromParent) return; // Prevent recursive updates
+    
     emit("update:modelValue", {
       ...localFilter.value,
+      date: localFilter.value.date as DateValue | undefined,
       searchQuery: props.modelValue.searchQuery, // Keep the current applied search
     });
   },
@@ -48,8 +56,13 @@ watch(
 watch(
   () => props.modelValue,
   (newValue) => {
+    isUpdatingFromParent = true;
     localFilter.value = { ...newValue };
     searchInput.value = newValue.searchQuery || "";
+    // Reset flag on next tick to allow normal updates
+    nextTick(() => {
+      isUpdatingFromParent = false;
+    });
   },
   { deep: true },
 );
@@ -66,8 +79,8 @@ const handleDateChange = (date: DateValue | undefined) => {
 const handleSearch = () => {
   emit("search", searchInput.value);
 };
-// Search input uses v-model directly - no handler needed
 </script>
+
 <template>
   <div>
     <div class="flex flex-wrap gap-4 items-center justify-between max-w-xl">
@@ -123,41 +136,41 @@ const handleSearch = () => {
       <ul class="flex items-center gap-6 flex-wrap mt-4">
         <li class="flex items-center gap-2">
           <Checkbox
-        id="error"
-        :key="`error-${localFilter.logLevels.error}`"
-        v-model="localFilter.logLevels.error"
+            id="error"
+            :key="`error-${localFilter.logLevels.error}`"
+            v-model="localFilter.logLevels.error"
           />
           <label for="error">Error</label>
         </li>
         <li class="flex items-center gap-2">
           <Checkbox
-        id="warning"
-        :key="`warning-${localFilter.logLevels.warning}`"
-        v-model="localFilter.logLevels.warning"
+            id="warning"
+            :key="`warning-${localFilter.logLevels.warning}`"
+            v-model="localFilter.logLevels.warning"
           />
           <label for="warning">Warning</label>
         </li>
         <li class="flex items-center gap-2">
           <Checkbox
-        id="info"
-        :key="`info-${localFilter.logLevels.info}`"
-        v-model="localFilter.logLevels.info"
+            id="info"
+            :key="`info-${localFilter.logLevels.info}`"
+            v-model="localFilter.logLevels.info"
           />
           <label for="info">Info</label>
         </li>
         <li class="flex items-center gap-2">
           <Checkbox
-        id="debug"
-        :key="`debug-${localFilter.logLevels.debug}`"
-        v-model="localFilter.logLevels.debug"
+            id="debug"
+            :key="`debug-${localFilter.logLevels.debug}`"
+            v-model="localFilter.logLevels.debug"
           />
           <label for="debug">Debug</label>
         </li>
         <li class="flex items-center gap-2">
           <Checkbox
-        id="trace"
-        :key="`trace-${localFilter.logLevels.trace}`"
-        v-model="localFilter.logLevels.trace"
+            id="trace"
+            :key="`trace-${localFilter.logLevels.trace}`"
+            v-model="localFilter.logLevels.trace"
           />
           <label for="trace">Trace</label>
         </li>

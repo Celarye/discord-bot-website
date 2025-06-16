@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import LogFilter from "@/components/molecules/LogFilter.vue";
-import { getLocalTimeZone } from "@internationalized/date";
 import type { FilterValues, Log } from "~/assets/types/typelist";
+import LogFilter from "~/components/molecules/LogFilter.vue";
+import LogList from "~/components/molecules/LogList.vue";
+import { useLogsStore } from "~/stores/logs";
 import { computed, ref, watch } from "vue";
-import LogList from "../molecules/LogList.vue";
+
+const logsStore = useLogsStore();
 
 const filter = ref<FilterValues>({
   searchQuery: "",
@@ -17,44 +19,35 @@ const filter = ref<FilterValues>({
   date: undefined,
 });
 
-const logs = ref<Log[]>([
-  {
-    id: "1",
-    type: "info",
-    message: "This is an info log entry.",
-    timestamp: new Date().toISOString(),
+const loadedDates = new Set<string>();
+
+watch(
+  () => filter.value.date,
+  async (newDate) => {
+    const dateString = newDate?.toString() ?? null;
+        console.log("Selected date:", dateString); 
+    if (!dateString || loadedDates.has(dateString)) return;
+
+    try {
+      await logsStore.fetchLogs(dateString);
+      loadedDates.add(dateString);
+    } catch (error) {
+      console.error("Failed to fetch logs:", error);
+    }
   },
-  {
-    id: "2",
-    type: "warning",
-    message: "This is a warning log entry.",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    id: "3",
-    type: "error",
-    message: "This is an error log entry.",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    id: "4",
-    type: "debug",
-    message: "This is a debug log entry.",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    id: "5",
-    type: "trace",
-    message: "This is a trace log entry.",
-    timestamp: new Date().toISOString(),
-  },
-]);
+  { immediate: true },
+);
+
+const logs = computed<Log[]>(() => {
+  const dateString = filter.value.date?.toString() ?? null;
+  if (!dateString) return [];
+  return logsStore.logs[dateString] || [];
+});
 
 const filteredLogs = computed(() => {
   return logs.value.filter((log) => {
-    if (!filter.value.logLevels[log.type]) {
-      return false;
-    }
+    if (!filter.value.logLevels[log.type]) return false;
+
     if (
       filter.value.searchQuery?.trim() &&
       !log.message
@@ -63,38 +56,30 @@ const filteredLogs = computed(() => {
     ) {
       return false;
     }
+
     if (filter.value.date) {
       const logDate = new Date(log.timestamp);
-      const filterDate = filter.value.date.toDate(getLocalTimeZone());
-      if (logDate.toDateString() !== filterDate.toDateString()) {
+      const filterDate = filter.value.date.toDate("UTC");
+
+      if (
+        logDate.getUTCFullYear() !== filterDate.getFullYear() ||
+        logDate.getUTCMonth() !== filterDate.getMonth() ||
+        logDate.getUTCDate() !== filterDate.getDate()
+      ) {
         return false;
       }
     }
+
     return true;
   });
 });
 
-// Handle search button click
 const handleSearch = (searchQuery: string) => {
-  console.log("Search triggered with query:", searchQuery);
-  // Create a new filter object to trigger reactivity
   filter.value = {
     ...filter.value,
-    searchQuery: searchQuery,
+    searchQuery,
   };
 };
-
-watch(
-  () => filter.value.searchQuery,
-  (newValue) => {
-    console.log("Applied search query:", newValue);
-  },
-  { immediate: true },
-);
-
-watch(filteredLogs, (newLogs) => {
-  console.log("Filtered logs updated:", newLogs.length);
-});
 </script>
 
 <template>
