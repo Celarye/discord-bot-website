@@ -15,6 +15,8 @@ export interface PluginVersion {
 export interface PluginMetadata {
   name: string;
   version: string;
+  enabled?: boolean;
+
   "compatible-bot-version": number;
   "version-deprecated": boolean;
   "version-deprecation-reason"?: string;
