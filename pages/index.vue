@@ -8,3 +8,4 @@ import DashboardPage from "@/components/organisms/DashboardPage.vue";
     <DashboardPage />
   </div>
 </template>
+

@@ -4,7 +4,7 @@ import ProfileBreadcrumb from "~/components/molecules/breadcrumbs/ProfileBreadcr
 
 <template>
   <div>
-    <h2>Profile</h2>
+    <h2 class="text-2xl mb-2 font-semibold">Profile</h2>
     <ProfileBreadcrumb />
   </div>
 </template>

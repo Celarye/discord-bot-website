@@ -1,3 +1,10 @@
+import type { DateValue } from "@internationalized/date";
+
+export interface Plugintype {
+  name: string;
+  version: string;
+}
+
 export interface PluginVersion {
   version: string;
   "compatible-bot-version": number;
@@ -79,6 +86,26 @@ export interface PluginSearchParams {
   query?: string;
 }
 
+
+export interface FilterValues {
+  searchQuery?: string;
+  logLevels: {
+    error: boolean;
+    warning: boolean;
+    info: boolean;
+    debug: boolean;
+    trace: boolean;
+  };
+  date?: DateValue | undefined;
+}
+
+export interface Log {
+  id: string;
+  type: "info" | "warning" | "error" | "debug" | "trace";
+  message: string;
+  timestamp: string;
+}
+
 export interface InstalledPlugin {
   name?: string;
   version: string;
@@ -96,3 +123,4 @@ export interface InstalledPlugin {
   repository?: string;
   tags?: string[];
 }
+
