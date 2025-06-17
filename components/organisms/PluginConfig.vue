@@ -587,8 +587,8 @@ const refreshRegistry = async () => {
 </script>
 
 <template>
-  <Card>
-    <CardContent class="p-6">
+  <div>
+    <div class="p-6">
       <div v-if="isLoading" class="flex justify-center py-6">
         <Loader2 class="h-12 w-12 animate-spin text-primary" />
       </div>
@@ -705,6 +705,6 @@ const refreshRegistry = async () => {
           </div>
         </div>
       </div>
-    </CardContent>
-  </Card>
+    </div>
+  </div>
 </template>
