@@ -30,14 +30,16 @@ function handleRestart() {
 <template>
   <Card class="w-full mx-auto min-w-[217px]">
     <CardHeader>
-      <CardTitle>Bot Status</CardTitle>
+      <CardTitle class="text-center text-xl">Bot Status</CardTitle>
     </CardHeader>
-    <CardContent>
+    <div class="border-b border-gray-200 dark:border-gray-700" />
+    <CardContent class="flex justify-center">
       <BotStatus :online="botStatus" />
     </CardContent>
     <CardFooter>
       <PowerButton
         :online="botStatus"
+        class="w-full flex justify-center items-center"
         @power="handlePowerChange"
         @restart="handleRestart"
       />

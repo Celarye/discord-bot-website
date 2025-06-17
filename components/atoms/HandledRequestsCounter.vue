@@ -1,5 +1,6 @@
-<!-- <script setup>
-import { defineProps } from "vue";
+<script setup lang="ts">
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { computed } from "vue";
 
 const props = defineProps({
   count: {
@@ -7,33 +8,19 @@ const props = defineProps({
     required: true,
   },
 });
-</script>
 
-<template>
-  <div class="flex items-center gap-2">
-    <span class="text-muted-foreground">Handled Requests:</span>
-    <span class="font-semibold">{{ props.count }}</span>
-  </div>
-</template> -->
-
-<script setup lang="ts">
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-defineProps({
-  count: {
-    type: Number,
-    required: true,
-  },
-});
+const formattedCount = computed(() =>
+  props.count.toLocaleString("en-US").replace(/,/g, " ")
+);
 </script>
 
 <template>
   <Card>
     <CardHeader>
-      <CardTitle>Handled Requests</CardTitle>
+      <CardTitle class="text-center">Handled Requests</CardTitle>
     </CardHeader>
-    <CardContent>
-      The bot has handled <span class="text-green-500">{{ count }}</span> Requests
+    <CardContent class="text-green-500 text-2xl font-bold text-center">
+      {{ formattedCount }}
     </CardContent>
   </Card>
 </template>

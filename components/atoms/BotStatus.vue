@@ -15,7 +15,7 @@ const statusClass = computed(() => (props.online ? "online" : "offline"));
 <template>
   <div
     :class="[
-      'flex items-center font-bold text-base',
+      'flex items-center font-bold text-lg',
       statusClass === 'online' ? 'text-green-500' : 'text-gray-500',
     ]"
   >

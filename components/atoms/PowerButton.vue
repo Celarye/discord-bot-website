@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { Button } from "@/components/ui/button";
+import { Power, PowerOff, RotateCw } from "lucide-vue-next";
 
 const props = defineProps<{
   online: boolean;
@@ -30,16 +31,16 @@ function restart() {
       aria-label="Power On"
       @click="setState('on')"
     >
-      <span class="i-lucide-power text-green-500 mr-2" />
+      <Power class="mr-2" />
       On
     </Button>
     <template v-else>
       <Button variant="default" aria-label="Power Off" @click="setState('off')">
-        <span class="i-lucide-power-off text-red-500 mr-2" />
+        <PowerOff class="mr-2" />
         Off
       </Button>
       <Button variant="secondary" aria-label="Restart" @click="restart">
-        <span class="i-lucide-rotate-cw text-yellow-500 mr-2" />
+        <RotateCw class="mr-2" />
         Restart
       </Button>
     </template>
