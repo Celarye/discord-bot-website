@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import {
+  getLocalTimeZone,
+  today,
+  type DateValue,
+} from "@internationalized/date";
 import type { FilterValues, Log } from "~/assets/types/typelist";
 import LogFilter from "~/components/molecules/LogFilter.vue";
 import LogList from "~/components/molecules/LogList.vue";
 import { useLogsStore } from "~/stores/logs";
-import { getLocalTimeZone, today, type DateValue } from "@internationalized/date";
 
 const logsStore = useLogsStore();
 
@@ -27,7 +31,7 @@ watch(
   () => filter.value.date,
   async (newDate) => {
     const dateString = newDate?.toString() ?? null;
-        console.log("Selected date:", dateString); 
+    console.log("Selected date:", dateString);
     if (!dateString || loadedDates.has(dateString)) return;
 
     try {
@@ -91,7 +95,10 @@ const handleSearch = (searchQuery: string) => {
       Please select a date to view logs.
     </div>
     <div v-else>
-      <div v-if="filteredLogs.length === 0" class="text-center text-gray-500 py-8">
+      <div
+        v-if="filteredLogs.length === 0"
+        class="text-center text-gray-500 py-8"
+      >
         No logs found for the selected filters.
       </div>
       <LogList v-else :logs="filteredLogs" />

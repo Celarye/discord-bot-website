@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import LogCard from "@/components/atoms/LogCard.vue";
 import type { Log } from "@/assets/types/typelist.ts";
-defineProps<{logs: Log[]}>()
+import LogCard from "@/components/atoms/LogCard.vue";
+
+defineProps<{ logs: Log[] }>();
 </script>
 
 <template>

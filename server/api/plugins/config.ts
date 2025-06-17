@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
-import yaml from "yaml";
-import { defineEventHandler, readBody } from "h3";
 import type { InstalledPlugin } from "~/assets/types/typelist";
+import { defineEventHandler, readBody } from "h3";
+import yaml from "yaml";
 
 interface PluginConfig {
-  plugins: Record<string, Omit<InstalledPlugin, 'name'>>;
+  plugins: Record<string, Omit<InstalledPlugin, "name">>;
   metadata?: {
     lastUpdated: string;
     version: string;
@@ -13,7 +13,12 @@ interface PluginConfig {
 }
 
 interface PluginSettings {
-  [key: string]: string | number | boolean | PluginSettings | Array<string | number | boolean>;
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | PluginSettings
+    | Array<string | number | boolean>;
 }
 
 interface PluginEnvironment {
@@ -65,7 +70,7 @@ interface PluginUpdateRequest {
   }> | null;
 }
 
-interface ExtendedInstalledPlugin extends Omit<InstalledPlugin, 'name'> {
+interface ExtendedInstalledPlugin extends Omit<InstalledPlugin, "name"> {
   isDependency?: boolean;
   dependentPlugin?: string;
 }
@@ -92,31 +97,43 @@ async function fetchPluginDataFromRegistry(pluginName: string): Promise<{
 
     const pluginData = registryData.plugins[pluginName];
 
-    if (!pluginData.versions || !Array.isArray(pluginData.versions) || pluginData.versions.length === 0) {
+    if (
+      !pluginData.versions ||
+      !Array.isArray(pluginData.versions) ||
+      pluginData.versions.length === 0
+    ) {
       return null;
     }
 
     // Always get the latest version by sorting versions semantically
-    const availableVersions = pluginData.versions.filter((v: VersionData) => !v.deprecated);
+    const availableVersions = pluginData.versions.filter(
+      (v: VersionData) => !v.deprecated,
+    );
     if (availableVersions.length === 0) {
       return null;
     }
 
     // Sort versions to get the latest one (semantic version sorting)
-    const sortedVersions = availableVersions.sort((a: VersionData, b: VersionData) => {
-      const versionA = a.version.split('.').map((num: string) => parseInt(num, 10));
-      const versionB = b.version.split('.').map((num: string) => parseInt(num, 10));
+    const sortedVersions = availableVersions.sort(
+      (a: VersionData, b: VersionData) => {
+        const versionA = a.version
+          .split(".")
+          .map((num: string) => parseInt(num, 10));
+        const versionB = b.version
+          .split(".")
+          .map((num: string) => parseInt(num, 10));
 
-      for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
-        const numA = versionA[i] || 0;
-        const numB = versionB[i] || 0;
+        for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
+          const numA = versionA[i] || 0;
+          const numB = versionB[i] || 0;
 
-        if (numA !== numB) {
-          return numA - numB;
+          if (numA !== numB) {
+            return numA - numB;
+          }
         }
-      }
-      return 0;
-    });
+        return 0;
+      },
+    );
 
     // Get the latest (highest) version
     const targetVersion = sortedVersions[sortedVersions.length - 1];
@@ -124,7 +141,7 @@ async function fetchPluginDataFromRegistry(pluginName: string): Promise<{
     if (!targetVersion) {
       return null;
     }
-    console.log("target version" + targetVersion.version)
+    console.log("target version" + targetVersion.version);
 
     // Updated metadata URL to include the version in the path
     const metadataUrl = `https://raw.githubusercontent.com/Celarye/discord-bot-plugins/refs/heads/master/${pluginName}/${targetVersion.version}/metadata.json`;
@@ -137,11 +154,15 @@ async function fetchPluginDataFromRegistry(pluginName: string): Promise<{
         const metadataText = await metadataResponse.text();
         const metadata: PluginMetadata = JSON.parse(metadataText);
 
-        if (metadata.environment && typeof metadata.environment === 'object' && !Array.isArray(metadata.environment)) {
+        if (
+          metadata.environment &&
+          typeof metadata.environment === "object" &&
+          !Array.isArray(metadata.environment)
+        ) {
           environment = metadata.environment;
         }
 
-        if (metadata.settings && typeof metadata.settings === 'object') {
+        if (metadata.settings && typeof metadata.settings === "object") {
           settings = metadata.settings;
         }
       }
@@ -155,9 +176,8 @@ async function fetchPluginDataFromRegistry(pluginName: string): Promise<{
     return {
       version: targetVersion.version,
       environment,
-      settings
+      settings,
     };
-
   } catch {
     return null;
   }
@@ -165,7 +185,7 @@ async function fetchPluginDataFromRegistry(pluginName: string): Promise<{
 
 export default defineEventHandler(async (event) => {
   const method = event.node.req.method;
-  const configPath = path.resolve('config.yaml');
+  const configPath = path.resolve("config.yaml");
 
   if (method === "GET") {
     try {
@@ -177,8 +197,8 @@ export default defineEventHandler(async (event) => {
           plugins: {},
           metadata: {
             lastUpdated: new Date().toISOString(),
-            version: "1.0.0"
-          }
+            version: "1.0.0",
+          },
         };
         return defaultConfig;
       }
@@ -199,13 +219,13 @@ export default defineEventHandler(async (event) => {
 
       const body = await readBody(event);
 
-      if (body.action === 'add-plugin') {
+      if (body.action === "add-plugin") {
         const pluginData: AddPluginRequest = body.plugin;
 
         if (!pluginData.name || !pluginData.version) {
           event.node.res.statusCode = 400;
           return {
-            error: "Invalid plugin data: name and version are required"
+            error: "Invalid plugin data: name and version are required",
           };
         }
 
@@ -218,56 +238,70 @@ export default defineEventHandler(async (event) => {
         if (config.plugins[pluginData.name]) {
           event.node.res.statusCode = 409;
           return {
-            error: "Plugin already installed"
+            error: "Plugin already installed",
           };
         }
 
         const now = new Date().toISOString();
         const registryData = await fetchPluginDataFromRegistry(pluginData.name);
 
-        const newPluginData: Omit<InstalledPlugin, 'name'> & { dependencies?: Array<{ name: string; url?: string; version?: string; }> } = {
+        const newPluginData: Omit<InstalledPlugin, "name"> & {
+          dependencies?: Array<{
+            name: string;
+            url?: string;
+            version?: string;
+          }>;
+        } = {
           version: registryData?.version || pluginData.version,
           enabled: pluginData.enabled !== undefined ? pluginData.enabled : true,
           installedAt: now,
-          ...(registryData?.environment || pluginData.environment ? {
-            environment: {
-              ...(registryData?.environment || {}),
-              ...(pluginData.environment || {})
-            }
-          } : {}),
-          ...(pluginData.settings && Object.keys(pluginData.settings).length > 0 && {
-            settings: pluginData.settings
-          })
+          ...(registryData?.environment || pluginData.environment
+            ? {
+                environment: {
+                  ...(registryData?.environment || {}),
+                  ...(pluginData.environment || {}),
+                },
+              }
+            : {}),
+          ...(pluginData.settings &&
+            Object.keys(pluginData.settings).length > 0 && {
+              settings: pluginData.settings,
+            }),
         };
 
         config.plugins[pluginData.name] = newPluginData;
 
         if (pluginData.dependencies && pluginData.dependencies.length > 0) {
-          const dependencyPromises = pluginData.dependencies.map(async (dep) => {
-            if (!config.plugins[dep.name]) {
-              const depRegistryData = await fetchPluginDataFromRegistry(dep.name);
+          const dependencyPromises = pluginData.dependencies.map(
+            async (dep) => {
+              if (!config.plugins[dep.name]) {
+                const depRegistryData = await fetchPluginDataFromRegistry(
+                  dep.name,
+                );
 
-              if (!depRegistryData) {
-                return null;
+                if (!depRegistryData) {
+                  return null;
+                }
+
+                const dependencyPluginData: Omit<InstalledPlugin, "name"> = {
+                  version: depRegistryData.version,
+                  enabled: true,
+                  installedAt: now,
+                  ...(depRegistryData.environment &&
+                    Object.keys(depRegistryData.environment).length > 0 && {
+                      environment: depRegistryData.environment,
+                    }),
+                };
+
+                return { name: dep.name, data: dependencyPluginData };
               }
-
-              const dependencyPluginData: Omit<InstalledPlugin, 'name'> = {
-                version: depRegistryData.version,
-                enabled: true,
-                installedAt: now,
-                ...(depRegistryData.environment && Object.keys(depRegistryData.environment).length > 0 && {
-                  environment: depRegistryData.environment
-                })
-              };
-
-              return { name: dep.name, data: dependencyPluginData };
-            }
-            return null;
-          });
+              return null;
+            },
+          );
 
           const resolvedDependencies = await Promise.all(dependencyPromises);
 
-          resolvedDependencies.forEach(dep => {
+          resolvedDependencies.forEach((dep) => {
             if (dep) {
               config.plugins[dep.name] = dep.data;
             }
@@ -276,26 +310,29 @@ export default defineEventHandler(async (event) => {
 
         config.metadata = {
           lastUpdated: now,
-          version: config.metadata?.version || "1.0.0"
+          version: config.metadata?.version || "1.0.0",
         };
 
-        fs.writeFileSync(configPath, yaml.stringify(config, {
-          indent: 2,
-          lineWidth: 0,
-          minContentWidth: 0,
-          doubleQuotedAsJSON: false
-        }));
+        fs.writeFileSync(
+          configPath,
+          yaml.stringify(config, {
+            indent: 2,
+            lineWidth: 0,
+            minContentWidth: 0,
+            doubleQuotedAsJSON: false,
+          }),
+        );
 
         return {
           success: true,
           message: `Plugin ${pluginData.name} installed successfully`,
           plugin: { name: pluginData.name, ...newPluginData },
-          dependenciesInstalled: pluginData.dependencies?.length || 0
+          dependenciesInstalled: pluginData.dependencies?.length || 0,
         };
       }
 
       let config: PluginConfig;
-      if (typeof body === 'string') {
+      if (typeof body === "string") {
         config = yaml.parse(body);
       } else {
         config = body;
@@ -304,58 +341,63 @@ export default defineEventHandler(async (event) => {
       if (!config.plugins) {
         event.node.res.statusCode = 400;
         return {
-          error: "Invalid configuration: plugins object is required"
+          error: "Invalid configuration: plugins object is required",
         };
       }
 
       if (Array.isArray(config.plugins)) {
         event.node.res.statusCode = 400;
         return {
-          error: "Invalid configuration: plugins must be an object, not an array"
+          error:
+            "Invalid configuration: plugins must be an object, not an array",
         };
       }
 
       try {
         for (const [pluginName, pluginData] of Object.entries(config.plugins)) {
-          if (!pluginName || typeof pluginName !== 'string') {
+          if (!pluginName || typeof pluginName !== "string") {
             event.node.res.statusCode = 400;
             return {
-              error: "Invalid plugin structure: plugin name must be a valid string"
+              error:
+                "Invalid plugin structure: plugin name must be a valid string",
             };
           }
 
-          if (!pluginData || typeof pluginData !== 'object') {
+          if (!pluginData || typeof pluginData !== "object") {
             event.node.res.statusCode = 400;
             return {
-              error: `Invalid plugin structure for ${pluginName}: plugin data must be an object`
+              error: `Invalid plugin structure for ${pluginName}: plugin data must be an object`,
             };
           }
 
-          if (!pluginData.version || typeof pluginData.version !== 'string') {
+          if (!pluginData.version || typeof pluginData.version !== "string") {
             event.node.res.statusCode = 400;
             return {
-              error: `Invalid plugin structure for ${pluginName}: version is required and must be a string`
+              error: `Invalid plugin structure for ${pluginName}: version is required and must be a string`,
             };
           }
         }
       } catch (error) {
         event.node.res.statusCode = 400;
         return {
-          error: `Invalid plugin structure: ${(error as Error).message}`
+          error: `Invalid plugin structure: ${(error as Error).message}`,
         };
       }
 
       config.metadata = {
         lastUpdated: new Date().toISOString(),
-        version: config.metadata?.version || "1.0.0"
+        version: config.metadata?.version || "1.0.0",
       };
 
-      fs.writeFileSync(configPath, yaml.stringify(config, {
-        indent: 2,
-        lineWidth: 0,
-        minContentWidth: 0,
-        doubleQuotedAsJSON: false
-      }));
+      fs.writeFileSync(
+        configPath,
+        yaml.stringify(config, {
+          indent: 2,
+          lineWidth: 0,
+          minContentWidth: 0,
+          doubleQuotedAsJSON: false,
+        }),
+      );
 
       return { success: true, message: "Configuration saved successfully" };
     } catch (error) {
@@ -370,7 +412,10 @@ export default defineEventHandler(async (event) => {
   if (method === "PUT") {
     try {
       const body = await readBody(event);
-      const { pluginName, updates }: { pluginName: string; updates: PluginUpdateRequest } = body;
+      const {
+        pluginName,
+        updates,
+      }: { pluginName: string; updates: PluginUpdateRequest } = body;
 
       if (!pluginName) {
         event.node.res.statusCode = 400;
@@ -390,21 +435,26 @@ export default defineEventHandler(async (event) => {
       }
 
       const currentPlugin = config.plugins[pluginName];
-      const updatedPluginData: Omit<InstalledPlugin, 'name'> & { dependencies?: Array<{ name: string; url?: string; version?: string; }> } = {
+      const updatedPluginData: Omit<InstalledPlugin, "name"> & {
+        dependencies?: Array<{ name: string; url?: string; version?: string }>;
+      } = {
         version: currentPlugin.version,
         enabled: currentPlugin.enabled,
-        installedAt: currentPlugin.installedAt
+        installedAt: currentPlugin.installedAt,
       };
 
       // Handle environment updates
-      if ('environment' in updates) {
+      if ("environment" in updates) {
         if (updates.environment === undefined || updates.environment === null) {
           // Environment will be omitted from updatedPluginData
-        } else if (updates.environment && typeof updates.environment === 'object') {
+        } else if (
+          updates.environment &&
+          typeof updates.environment === "object"
+        ) {
           if (Object.keys(updates.environment).length > 0) {
             updatedPluginData.environment = {
               ...(currentPlugin.environment || {}),
-              ...updates.environment
+              ...updates.environment,
             };
           }
         }
@@ -413,10 +463,10 @@ export default defineEventHandler(async (event) => {
       }
 
       // Handle settings updates
-      if ('settings' in updates) {
+      if ("settings" in updates) {
         if (updates.settings === undefined || updates.settings === null) {
           // Settings will be omitted from updatedPluginData
-        } else if (updates.settings && typeof updates.settings === 'object') {
+        } else if (updates.settings && typeof updates.settings === "object") {
           if (Object.keys(updates.settings).length > 0) {
             updatedPluginData.settings = updates.settings;
           }
@@ -426,41 +476,55 @@ export default defineEventHandler(async (event) => {
       }
 
       // Handle enabled updates
-      if ('enabled' in updates && updates.enabled !== undefined) {
+      if ("enabled" in updates && updates.enabled !== undefined) {
         updatedPluginData.enabled = updates.enabled;
       }
 
       // Handle dependencies updates
-      if ('dependencies' in updates) {
-        if (updates.dependencies === undefined || updates.dependencies === null) {
+      if ("dependencies" in updates) {
+        if (
+          updates.dependencies === undefined ||
+          updates.dependencies === null
+        ) {
           // Dependencies will be omitted from updatedPluginData
-        } else if (Array.isArray(updates.dependencies) && updates.dependencies.length > 0) {
+        } else if (
+          Array.isArray(updates.dependencies) &&
+          updates.dependencies.length > 0
+        ) {
           updatedPluginData.dependencies = updates.dependencies;
         }
-      } else if ('dependencies' in currentPlugin && currentPlugin.dependencies) {
-        updatedPluginData.dependencies = Array.isArray(currentPlugin.dependencies)
-            ? currentPlugin.dependencies
-            : [];
+      } else if (
+        "dependencies" in currentPlugin &&
+        currentPlugin.dependencies
+      ) {
+        updatedPluginData.dependencies = Array.isArray(
+          currentPlugin.dependencies,
+        )
+          ? currentPlugin.dependencies
+          : [];
       }
 
       config.plugins[pluginName] = updatedPluginData;
 
       config.metadata = {
         lastUpdated: new Date().toISOString(),
-        version: config.metadata?.version || "1.0.0"
+        version: config.metadata?.version || "1.0.0",
       };
 
-      fs.writeFileSync(configPath, yaml.stringify(config, {
-        indent: 2,
-        lineWidth: 0,
-        minContentWidth: 0,
-        doubleQuotedAsJSON: false
-      }));
+      fs.writeFileSync(
+        configPath,
+        yaml.stringify(config, {
+          indent: 2,
+          lineWidth: 0,
+          minContentWidth: 0,
+          doubleQuotedAsJSON: false,
+        }),
+      );
 
       return {
         success: true,
         message: "Plugin updated successfully",
-        plugin: { name: pluginName, ...config.plugins[pluginName] }
+        plugin: { name: pluginName, ...config.plugins[pluginName] },
       };
     } catch (error) {
       event.node.res.statusCode = 500;
@@ -473,8 +537,11 @@ export default defineEventHandler(async (event) => {
 
   if (method === "DELETE") {
     try {
-      const url = new URL(event.node.req.url!, `http://${event.node.req.headers.host}`);
-      const pluginName = url.searchParams.get('name');
+      const url = new URL(
+        event.node.req.url!,
+        `http://${event.node.req.headers.host}`,
+      );
+      const pluginName = url.searchParams.get("name");
 
       if (!pluginName) {
         event.node.res.statusCode = 400;
@@ -496,14 +563,20 @@ export default defineEventHandler(async (event) => {
       const originalCount = Object.keys(config.plugins).length;
 
       // Create new plugins object without the target plugin
-      const { [pluginName]: removedPlugin, ...remainingPlugins } = config.plugins;
+      const { [pluginName]: removedPlugin, ...remainingPlugins } =
+        config.plugins;
 
       // Find and remove dependent plugins
-      const pluginsToKeep: Record<string, Omit<InstalledPlugin, 'name'>> = {};
+      const pluginsToKeep: Record<string, Omit<InstalledPlugin, "name">> = {};
 
       for (const [key, plugin] of Object.entries(remainingPlugins)) {
         const extendedPlugin = plugin as ExtendedInstalledPlugin;
-        if (!(extendedPlugin.isDependency && extendedPlugin.dependentPlugin === pluginName)) {
+        if (
+          !(
+            extendedPlugin.isDependency &&
+            extendedPlugin.dependentPlugin === pluginName
+          )
+        ) {
           pluginsToKeep[key] = plugin;
         }
       }
@@ -515,19 +588,22 @@ export default defineEventHandler(async (event) => {
 
       config.metadata = {
         lastUpdated: new Date().toISOString(),
-        version: config.metadata?.version || "1.0.0"
+        version: config.metadata?.version || "1.0.0",
       };
 
-      fs.writeFileSync(configPath, yaml.stringify(config, {
-        indent: 2,
-        lineWidth: 0,
-        minContentWidth: 0,
-        doubleQuotedAsJSON: false
-      }));
+      fs.writeFileSync(
+        configPath,
+        yaml.stringify(config, {
+          indent: 2,
+          lineWidth: 0,
+          minContentWidth: 0,
+          doubleQuotedAsJSON: false,
+        }),
+      );
 
       return {
         success: true,
-        message: `Plugin removed successfully${removedCount > 1 ? ` (${removedCount - 1} dependencies also removed)` : ''}`
+        message: `Plugin removed successfully${removedCount > 1 ? ` (${removedCount - 1} dependencies also removed)` : ""}`,
       };
     } catch (error) {
       event.node.res.statusCode = 500;
