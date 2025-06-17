@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import PluginSettingsDialog from "~/components/molecules/PluginSettingsDialog.vue";
 import {
   Package,
@@ -130,6 +131,10 @@ const handleConfigurePlugin = (pluginName: string) => {
   }, 0);
 };
 
+const handleTogglePlugin = (pluginName: string, enabled: boolean) => {
+  emit("toggle-plugin", pluginName, enabled);
+};
+
 const handleSettingsDialogSubmit = (settingsData?: PluginSettings, environmentData?: PluginEnvironment) => {
   if (!selectedPluginName.value) return;
 
@@ -208,24 +213,36 @@ const getStatusColor = (plugin: InstalledPlugin) => {
                     </div>
                   </div>
 
-                  <div class="flex items-center gap-2">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        class="h-8 w-8 p-0"
-                        @click="handleConfigurePlugin(plugin.name)"
-                    >
-                      <Settings class="h-3 w-3" />
-                    </Button>
+                  <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                      <label class="text-xs font-medium">
+                        {{ plugin.enabled ? 'Enabled' : 'Disabled' }}
+                      </label>
+                      <Switch
+                          :model-value="plugin.enabled"
+                          @update:model-value="(value) => handleTogglePlugin(plugin.name, value)"
+                      />
+                    </div>
 
-                    <Button
-                        size="sm"
-                        variant="destructive"
-                        class="h-8 w-8 p-0"
-                        @click="handleDeletePlugin(plugin.name)"
-                    >
-                      <Trash2 class="h-3 w-3" />
-                    </Button>
+                    <div class="flex items-center gap-2">
+                      <Button
+                          size="sm"
+                          variant="outline"
+                          class="h-8 w-8 p-0"
+                          @click="handleConfigurePlugin(plugin.name)"
+                      >
+                        <Settings class="h-3 w-3" />
+                      </Button>
+
+                      <Button
+                          size="sm"
+                          variant="destructive"
+                          class="h-8 w-8 p-0"
+                          @click="handleDeletePlugin(plugin.name)"
+                      >
+                        <Trash2 class="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -266,24 +283,36 @@ const getStatusColor = (plugin: InstalledPlugin) => {
                     </div>
                   </div>
 
-                  <div class="flex items-center gap-2">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        class="h-8 w-8 p-0"
-                        @click="handleConfigurePlugin(plugin.name)"
-                    >
-                      <Settings class="h-3 w-3" />
-                    </Button>
+                  <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                      <label class="text-xs font-medium">
+                        {{ plugin.enabled ? 'Enabled' : 'Disabled' }}
+                      </label>
+                      <Switch
+                          :model-value="plugin.enabled"
+                          @update:model-value="(value) => handleTogglePlugin(plugin.name, value)"
+                      />
+                    </div>
 
-                    <Button
-                        size="sm"
-                        variant="destructive"
-                        class="h-8 w-8 p-0"
-                        @click="handleDeletePlugin(plugin.name)"
-                    >
-                      <Trash2 class="h-3 w-3" />
-                    </Button>
+                    <div class="flex items-center gap-2">
+                      <Button
+                          size="sm"
+                          variant="outline"
+                          class="h-8 w-8 p-0"
+                          @click="handleConfigurePlugin(plugin.name)"
+                      >
+                        <Settings class="h-3 w-3" />
+                      </Button>
+
+                      <Button
+                          size="sm"
+                          variant="destructive"
+                          class="h-8 w-8 p-0"
+                          @click="handleDeletePlugin(plugin.name)"
+                      >
+                        <Trash2 class="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
