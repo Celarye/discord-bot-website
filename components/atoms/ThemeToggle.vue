@@ -30,7 +30,7 @@ const nextColorModeIcon = computed(() =>
 </script>
 
 <template>
-  <span @click="toggleColorMode" class="flex flex-row gap-2 items-center">
+  <span class="flex flex-row gap-2 items-center" @click="toggleColorMode">
     <Icon :icon="nextColorModeIcon" />
     {{ nextColorModeLabel }}
   </span>
