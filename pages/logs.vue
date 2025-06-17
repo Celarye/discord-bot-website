@@ -5,6 +5,7 @@ import LogPage from "~/components/organisms/LogPage.vue";
 
 <template>
   <div>
+    <title>Logs | Discord Bot</title>
     <LogsBreadcrumb />
     <h2 class="text-2xl mb-2 font-semibold">Logs</h2>
     <LogPage />

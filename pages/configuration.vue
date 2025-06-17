@@ -5,6 +5,7 @@ import PluginConfig from "~/components/organisms/PluginConfig.vue";
 
 <template>
   <div>
+    <title>Configuration | Discord Bot</title>
     <ConfigurationBreadcrumb />
     <h2 class="text-2xl mb-2 font-semibold">Configuration</h2>
     <PluginConfig />
