@@ -1,13 +1,10 @@
 import type { PluginRegistry, PluginSearchParams, PluginMetadata } from "~/assets/types/typelist";
 
-// Configuration - change this URL to switch between local mock server and git repository
 const REGISTRY_CONFIG = {
-  // For local development
   local: {
     baseUrl: "http://localhost:3001",
     type: "local" as const
   },
-  // For git repository (example URLs - replace with actual repository URLs)
   git: {
     baseUrl: "https://raw.githubusercontent.com/Celarye/discord-bot-plugins/refs/heads/master/",
     type: "git" as const
@@ -19,15 +16,12 @@ interface VersionData {
   deprecated?: boolean;
 }
 
-// Switch between local and git by changing this key
 const CURRENT_CONFIG_KEY: keyof typeof REGISTRY_CONFIG = "git"; // Change to "local" for development
 
-// Helper function to get current config
 function getCurrentConfig() {
   return REGISTRY_CONFIG[CURRENT_CONFIG_KEY];
 }
 
-// Define interfaces locally (removed RegistryPlugin from imports to avoid conflict)
 interface PluginSettings {
   type: string;
   properties: Record<string, unknown>;
@@ -52,12 +46,11 @@ interface RegistryPlugin {
   documentation?: string;
   repository?: string;
   tags?: string[];
-  environment?: string; // Added missing environment field
+  environment?: string;
   settings?: PluginSettings;
   dependencies?: PluginDependency[];
 }
 
-// Extended metadata interface for type safety
 interface ExtendedPluginMetadata extends PluginMetadata {
   environment?: string;
   settings?: PluginSettings;
@@ -76,13 +69,11 @@ async function getLatestPluginVersion(pluginName: string): Promise<string | null
       return null;
     }
 
-    // Filter out deprecated versions
     const availableVersions = pluginData.versions.filter((v: VersionData) => !v.deprecated);
     if (availableVersions.length === 0) {
       return null;
     }
 
-    // Sort versions to get the latest one (semantic version sorting)
     const sortedVersions = availableVersions.sort((a :VersionData, b: VersionData) => {
       const versionA = a.version.split('.').map(num => parseInt(num, 10));
       const versionB = b.version.split('.').map(num => parseInt(num, 10));
@@ -98,7 +89,6 @@ async function getLatestPluginVersion(pluginName: string): Promise<string | null
       return 0;
     });
 
-    // Get the latest (highest) version
     const latestVersion = sortedVersions[sortedVersions.length - 1];
     return latestVersion.version;
   } catch (error) {
@@ -122,7 +112,6 @@ async function fetchPluginMetadata(pluginName: string): Promise<PluginMetadata> 
       }
       return await response.json();
     } else {
-      // For git-based registry, we need to get the latest version first
       const latestVersion = await getLatestPluginVersion(pluginName);
       if (!latestVersion) {
         throw new Error(`No valid version found for plugin ${pluginName}`);
@@ -169,7 +158,6 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
   try {
     const registry = await fetchRegistry();
     const plugins: RegistryPlugin[] = [];
-    // process plugin 1 by 1
     for (const [pluginName, pluginData] of Object.entries(registry.plugins)) {
       try {
         const metadata = await fetchPluginMetadata(pluginName);
@@ -189,7 +177,7 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
           documentation: metadata.documentation,
           repository: metadata.repository,
           tags: metadata.tags || [],
-          // Use extended metadata with proper typing
+          // use extended metadata with proper typing
           environment: extendedMetadata.environment,
           settings: extendedMetadata.settings,
           dependencies: extendedMetadata.dependencies || []
@@ -210,7 +198,7 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
           authors: [],
           license: "Unknown",
           tags: [],
-          // Set undefined for missing fields in fallback
+          // set undefined for missing fields in fallback
           environment: undefined,
           settings: undefined,
           dependencies: []
@@ -254,7 +242,7 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
           documentation: metadata.documentation,
           repository: metadata.repository,
           tags: metadata.tags || [],
-          // Use extended metadata with proper typing
+          // use extended metadata with proper typing
           environment: extendedMetadata.environment,
           settings: extendedMetadata.settings,
           dependencies: extendedMetadata.dependencies || []
@@ -265,7 +253,7 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
           authors: [],
           license: "Unknown",
           tags: [],
-          // Set undefined for missing fields in fallback
+          // set undefined for missing fields in fallback
           environment: undefined,
           settings: undefined,
           dependencies: []
@@ -295,7 +283,7 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
         documentation: metadata.documentation,
         repository: metadata.repository,
         tags: metadata.tags || [],
-        // Use extended metadata with proper typing
+        // use extended metadata with proper typing
         environment: extendedMetadata.environment,
         settings: extendedMetadata.settings,
         dependencies: extendedMetadata.dependencies || []
@@ -321,7 +309,7 @@ export async function searchPlugins(params: PluginSearchParams): Promise<{ count
 
       const response = await fetch(`${config.baseUrl}/registry/search?${searchParams}`);
       if (!response.ok) {
-        throw new Error(`Search failed: ${response.statusText}`); // Fixed: was missing 'throw'
+        throw new Error(`Search failed: ${response.statusText}`);
       }
 
       const result = await response.json();
@@ -340,7 +328,7 @@ export async function searchPlugins(params: PluginSearchParams): Promise<{ count
             documentation: metadata.documentation,
             repository: metadata.repository,
             tags: metadata.tags || plugin.tags || [],
-            // Use extended metadata with proper typing
+            // use extended metadata with proper typing
             environment: extendedMetadata.environment,
             settings: extendedMetadata.settings,
             dependencies: extendedMetadata.dependencies || []

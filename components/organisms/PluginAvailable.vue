@@ -10,17 +10,18 @@ import PluginAvailableCard from "~/components/molecules/PluginAvailableCard.vue"
 
 // Define proper types for plugin-related data
 interface PluginSettings {
-  [key: string]: string | number | boolean | object;
+  [key: string]: string | number | boolean | null | undefined;
 }
 
 interface PluginEnvironment {
-  [key: string]: string | number | boolean;
+  [key: string]: string;
 }
 
 interface PluginDependency {
   name: string;
   version?: string;
-  optional?: boolean;
+  registry?: string;
+  [key: string]: unknown;
 }
 
 interface Props {
@@ -55,29 +56,29 @@ watch(() => props.availablePlugins, () => {
   // Watch for plugin updates if needed
 }, { immediate: true });
 
-
 const filteredPlugins = computed(() => {
   return props.availablePlugins.filter(plugin => {
     const matchesSearch = !searchQuery.value ||
         plugin.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        plugin.description.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        plugin.tags?.some(tag => tag.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-        plugin.authors?.some(author => author.toLowerCase().includes(searchQuery.value.toLowerCase()));
+        (plugin.description && plugin.description.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+        (plugin.tags && plugin.tags.some(tag => tag.toLowerCase().includes(searchQuery.value.toLowerCase()))) ||
+        (plugin.authors && plugin.authors.some(author => author.toLowerCase().includes(searchQuery.value.toLowerCase())));
 
     const matchesTag = !selectedTag.value ||
-        plugin.tags?.includes(selectedTag.value);
+        (plugin.tags && plugin.tags.includes(selectedTag.value));
 
-    const matchesDeprecation = showDeprecated.value || !plugin.deprecated;
+    const isDeprecated = plugin.deprecated || plugin['plugin-deprecated'] || false;
+    const matchesDeprecation = showDeprecated.value || !isDeprecated;
 
     return matchesSearch && matchesTag && matchesDeprecation;
   });
 });
 
-const isPluginInstalled = (pluginName: string) => {
+const isPluginInstalled = (pluginName: string): boolean => {
   return props.installedPlugins?.includes(pluginName) || false;
 };
 
-const handleRefresh = () => {
+const handleRefresh = (): void => {
   emit("refresh-plugins");
 };
 
@@ -88,17 +89,38 @@ const addPlugin = (
     environment?: PluginEnvironment,
     dependencies?: PluginDependency[],
     version?: string
-) => {
-  emit("add-plugin", pluginName, withSettings, settings, environment, dependencies, version);
+): void => {
+  // Ensure environment variables are strings
+  const processedEnvironment = environment ?
+      Object.fromEntries(
+          Object.entries(environment).map(([key, value]) => [key, String(value)])
+      ) : undefined;
+
+  emit("add-plugin", pluginName, withSettings, settings, processedEnvironment, dependencies, version);
+};
+
+const updateVersion = (pluginName: string, version: string): void => {
+  emit("update-version", pluginName, version);
 };
 
 const pluginStats = computed(() => {
   const total = props.availablePlugins.length;
-  const deprecated = props.availablePlugins.filter(p => p.deprecated).length;
+  const deprecated = props.availablePlugins.filter(p => p.deprecated || p['plugin-deprecated']).length;
   const installed = props.installedPlugins?.length || 0;
   const filtered = filteredPlugins.value.length;
 
   return { total, deprecated, installed, filtered };
+});
+
+// Get all unique tags from plugins
+const availableTags = computed(() => {
+  const tags = new Set<string>();
+  props.availablePlugins.forEach(plugin => {
+    if (plugin.tags) {
+      plugin.tags.forEach(tag => tags.add(tag));
+    }
+  });
+  return Array.from(tags).sort();
 });
 </script>
 
@@ -143,8 +165,7 @@ const pluginStats = computed(() => {
           />
         </div>
 
-        <div class="flex gap-2">
-
+        <div class="flex gap-2 items-center">
           <div class="flex items-center space-x-2">
             <input
                 id="show-deprecated"
@@ -159,6 +180,17 @@ const pluginStats = computed(() => {
               Show deprecated
             </label>
           </div>
+
+          <select
+              v-if="availableTags.length > 0"
+              v-model="selectedTag"
+              class="text-sm border border-gray-300 rounded px-2 py-1"
+          >
+            <option value="">All tags</option>
+            <option v-for="tag in availableTags" :key="tag" :value="tag">
+              {{ tag }}
+            </option>
+          </select>
         </div>
       </div>
 
@@ -183,7 +215,7 @@ const pluginStats = computed(() => {
             :selected-version="selectedVersions[plugin.name]"
             :is-installed="isPluginInstalled(plugin.name)"
             @add-plugin="addPlugin"
-            @update-version="(pluginName, version) => emit('update-version', pluginName, version)"
+            @update-version="updateVersion"
         />
       </div>
     </CardContent>

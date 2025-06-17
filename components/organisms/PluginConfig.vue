@@ -38,6 +38,7 @@ interface PluginEnvironment {
 interface PluginDependency {
   name: string;
   version?: string;
+  registry?: string;
   [key: string]: unknown;
 }
 
@@ -136,14 +137,13 @@ async function loadExistingConfig() {
   }
 }
 
-// Parse YAML content to JavaScript object
 const parseYaml = (yamlContent: string): PluginConfig => {
-  // Simple YAML parser - you might want to use a proper YAML library like js-yaml
   const lines = yamlContent.split('\n');
   const config: PluginConfig = { plugins: {} };
 
   let currentPlugin: string | null = null;
   let currentSection: string | null = null;
+  let currentSubSection: string | null = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -175,6 +175,34 @@ const parseYaml = (yamlContent: string): PluginConfig => {
         config.plugins[currentPlugin].version = value;
       } else if (key === 'enabled') {
         config.plugins[currentPlugin].enabled = value === 'true';
+      } else if (key === 'settings' && valueParts.join(':').trim() === '') {
+        config.plugins[currentPlugin].settings = {};
+        currentSubSection = 'settings';
+      } else if (key === 'environment' && valueParts.join(':').trim() === '') {
+        config.plugins[currentPlugin].environment = {};
+        currentSubSection = 'environment';
+      }
+    }
+
+    if (currentPlugin && currentSubSection && indent === 6) {
+      const [key, ...valueParts] = trimmed.split(':');
+      const value = valueParts.join(':').trim().replace(/^["']|["']$/g, '');
+
+      if (currentSubSection === 'settings') {
+        if (!config.plugins[currentPlugin].settings) {
+          config.plugins[currentPlugin].settings = {};
+        }
+        let parsedValue: string = value;
+        if (value === 'true') parsedValue = true;
+        else if (value === 'false') parsedValue = false;
+        else if (!isNaN(Number(value)) && value !== '') parsedValue = Number(value);
+
+        config.plugins[currentPlugin].settings![key] = parsedValue;
+      } else if (currentSubSection === 'environment') {
+        if (!config.plugins[currentPlugin].environment) {
+          config.plugins[currentPlugin].environment = {};
+        }
+        config.plugins[currentPlugin].environment![key] = value;
       }
     }
   }
@@ -198,7 +226,7 @@ const openFile = async (event: Event) => {
       const content = e.target?.result as string;
       let configData: PluginConfig;
 
-      // Check file extension to determine format
+      // check file extension to determine format
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
       try {
@@ -242,11 +270,24 @@ const openFile = async (event: Event) => {
 
 const deletePlugin = async (pluginName: string) => {
   try {
-    const { [pluginName]: _, ...rest } = plugins.value;
-    plugins.value = rest;
+    const response = await fetch(`/api/plugins/config?name=${encodeURIComponent(pluginName)}`, {
+      method: "DELETE",
+    });
 
-    error.value = null;
-    await saveToServer();
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to delete plugin: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      // reload configuration to reflect changes (including removed dependencies)
+      await loadExistingConfig();
+      error.value = null;
+    } else {
+      throw new Error(result.error || "Failed to delete plugin");
+    }
   } catch (err) {
     error.value = `Failed to delete plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
@@ -273,7 +314,15 @@ const togglePlugin = async (pluginName: string, enabled: boolean) => {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to update plugin: ${response.statusText}`);
+      plugins.value[pluginName].enabled = !enabled;
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to update plugin: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      plugins.value[pluginName].enabled = !enabled;
+      throw new Error(result.error || "Failed to toggle plugin");
     }
 
     error.value = null;
@@ -296,16 +345,16 @@ const configurePlugin = async (
     }
 
     const updates: {
-      settings?: PluginSettings;
-      environment?: PluginEnvironment;
-      dependencies?: PluginDependency[];
+      settings?: PluginSettings | null;
+      environment?: PluginEnvironment | null;
+      dependencies?: PluginDependency[] | null;
     } = {};
 
     if (settings !== undefined) {
       if (settings && Object.keys(settings).length > 0) {
         updates.settings = settings;
       } else {
-        updates.settings = undefined;
+        updates.settings = null;
       }
     }
 
@@ -313,7 +362,7 @@ const configurePlugin = async (
       if (environment && Object.keys(environment).length > 0) {
         updates.environment = environment;
       } else {
-        updates.environment = undefined;
+        updates.environment = null;
       }
     }
 
@@ -321,7 +370,7 @@ const configurePlugin = async (
       if (dependencies && dependencies.length > 0) {
         updates.dependencies = dependencies;
       } else {
-        updates.dependencies = undefined;
+        updates.dependencies = null;
       }
     }
 
@@ -414,7 +463,7 @@ const addPlugin = async (
     const result = await response.json();
 
     if (result.success) {
-      // Only reload the config, not the entire registry
+      // Reload the config to get all installed plugins including dependencies
       await loadExistingConfig();
       error.value = null;
     } else {
@@ -443,7 +492,6 @@ const updateSelectedVersion = (pluginName: string, version: string) => {
   selectedVersions.value[pluginName] = version;
 };
 
-// Convert plugins object to YAML format
 const convertToYaml = (): string => {
   try {
     const config: PluginConfig = {
@@ -454,7 +502,6 @@ const convertToYaml = (): string => {
       }
     };
 
-    // Simple YAML conversion (you might want to use a proper YAML library like js-yaml)
     let yaml = "plugins:\n";
 
     Object.entries(config.plugins).forEach(([name, plugin]) => {
@@ -462,16 +509,16 @@ const convertToYaml = (): string => {
       yaml += `    version: "${plugin.version}"\n`;
       yaml += `    enabled: ${plugin.enabled}\n`;
 
-      if (plugin.settings && Object.keys(plugin.settings).length > 0) {
-        yaml += `    settings:\n`;
-        Object.entries(plugin.settings).forEach(([key, value]) => {
+      if (plugin.environment && Object.keys(plugin.environment).length > 0) {
+        yaml += `    environment:\n`;
+        Object.entries(plugin.environment).forEach(([key, value]) => {
           yaml += `      ${key}: ${typeof value === 'string' ? `"${value}"` : value}\n`;
         });
       }
 
-      if (plugin.environment && Object.keys(plugin.environment).length > 0) {
-        yaml += `    environment:\n`;
-        Object.entries(plugin.environment).forEach(([key, value]) => {
+      if (plugin.settings && Object.keys(plugin.settings).length > 0) {
+        yaml += `    settings:\n`;
+        Object.entries(plugin.settings).forEach(([key, value]) => {
           yaml += `      ${key}: ${typeof value === 'string' ? `"${value}"` : value}\n`;
         });
       }
@@ -482,6 +529,9 @@ const convertToYaml = (): string => {
           yaml += `      - name: "${dep.name}"\n`;
           if (dep.version) {
             yaml += `        version: "${dep.version}"\n`;
+          }
+          if (dep.registry) {
+            yaml += `        registry: "${dep.registry}"\n`;
           }
         });
       }
@@ -533,7 +583,8 @@ const saveToServer = async (): Promise<boolean> => {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to save configuration: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to save configuration: ${response.statusText}`);
     }
 
     const result = await response.json();
@@ -541,7 +592,7 @@ const saveToServer = async (): Promise<boolean> => {
       error.value = null;
       return true;
     } else {
-      throw new Error(result.message || "Unknown error");
+      throw new Error(result.error || "Unknown error");
     }
   } catch (err) {
     error.value = `Failed to save configuration: ${err instanceof Error ? err.message : 'Unknown error'}`;

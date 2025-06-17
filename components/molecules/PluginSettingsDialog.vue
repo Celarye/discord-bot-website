@@ -19,10 +19,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, X, Plus, Settings, Zap } from "lucide-vue-next";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Download, X, Plus, Settings, Zap, AlertTriangle } from "lucide-vue-next";
 import { ref, watch, computed, nextTick } from "vue";
 
-// Type definitions
 type PropertyType = 'string' | 'number' | 'boolean' | 'array' | 'object';
 type PropertyFormat = 'date' | undefined;
 
@@ -72,6 +72,7 @@ const localSelectedVersion = ref(props.selectedVersion);
 const settingsFormData = ref<SettingsFormData>({});
 const environmentFormData = ref<EnvironmentFormData>({});
 const activeTab = ref<string>("settings");
+const validationErrors = ref<string[]>([]);
 
 const hasSettings = computed(() => {
   return props.settings &&
@@ -86,6 +87,49 @@ const hasEnvironment = computed(() => {
 const hasDependencies = computed(() => {
   return props.dependencies && props.dependencies.length > 0;
 });
+
+// Check if environment variable is required (value === true)
+const isEnvironmentRequired = (key: string): boolean => {
+  return props.environment?.[key] === true;
+};
+
+// Get required environment variables
+const requiredEnvironmentVars = computed(() => {
+  if (!props.environment) return [];
+  return Object.entries(props.environment)
+      .filter(([_, value]) => value === true)
+      .map(([key]) => key);
+});
+
+// Validate form before submission
+const validateForm = (): boolean => {
+  const errors: string[] = [];
+
+  // Validate required settings
+  if (hasSettings.value && props.settings?.properties) {
+    Object.entries(props.settings.properties).forEach(([key, property]) => {
+      if (property.required) {
+        const value = settingsFormData.value[key];
+        if (value === undefined || value === null || value === '') {
+          errors.push(`${formatLabel(key)} is required`);
+        }
+      }
+    });
+  }
+
+  // Validate required environment variables
+  if (hasEnvironment.value) {
+    requiredEnvironmentVars.value.forEach(envVar => {
+      const value = environmentFormData.value[envVar];
+      if (value === undefined || value === null || value === '') {
+        errors.push(`Environment variable ${formatLabel(envVar)} is required`);
+      }
+    });
+  }
+
+  validationErrors.value = errors;
+  return errors.length === 0;
+};
 
 const initializeSettingsForm = () => {
   if (!hasSettings.value) return;
@@ -149,7 +193,8 @@ const initializeEnvironmentForm = () => {
 
   Object.entries(props.environment!).forEach(([key, value]) => {
     if (typeof value === 'boolean') {
-      formData[key] = value;
+      // For required environment variables (value === true), initialize as empty string
+      formData[key] = value === true ? '' : value;
     } else if (typeof value === 'number') {
       formData[key] = value;
     } else {
@@ -176,7 +221,7 @@ const getFieldType = (property: Property): string => {
 };
 
 const getEnvironmentFieldType = (value: EnvironmentValue): string => {
-  if (typeof value === 'boolean') {
+  if (typeof value === 'boolean' && !value) {
     return 'checkbox';
   } else if (typeof value === 'number') {
     return 'number';
@@ -213,6 +258,7 @@ const updateArrayItem = (key: string, index: number, value: string): void => {
 
 watch(() => props.open, (newVal) => {
   if (newVal) {
+    validationErrors.value = []; // Clear validation errors when opening
     if (props.selectedVersion) {
       localSelectedVersion.value = props.selectedVersion;
     }
@@ -266,10 +312,16 @@ watch(localSelectedVersion, (newVal) => {
 });
 
 const closeDialog = (): void => {
+  validationErrors.value = [];
   emit("update:open", false);
 };
 
 const handleSubmit = (): void => {
+  // Validate form before proceeding
+  if (!validateForm()) {
+    return;
+  }
+
   let settingsData: SettingsFormData | undefined = undefined;
   let environmentData: EnvironmentFormData | undefined = undefined;
 
@@ -332,6 +384,17 @@ const handleSubmit = (): void => {
           </span>
         </DialogDescription>
       </DialogHeader>
+
+      <!-- Validation Errors Alert -->
+      <Alert v-if="validationErrors.length > 0" variant="destructive" class="mb-4">
+        <AlertTriangle class="h-4 w-4" />
+        <AlertDescription>
+          <div class="font-medium mb-1">Please fix the following errors:</div>
+          <ul class="list-disc list-inside text-sm space-y-1">
+            <li v-for="error in validationErrors" :key="error">{{ error }}</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
 
       <form v-if="pluginName" class="space-y-4 py-4 plugin-dialog-content" @submit.prevent="handleSubmit">
         <div v-if="hasDependencies" class="p-3 bg-blue-50 rounded-md border border-blue-200">
@@ -420,6 +483,7 @@ const handleSubmit = (): void => {
                     v-model="settingsFormData[key] as string"
                     :placeholder="property.description || `Enter ${formatLabel(key)}`"
                     :required="property.required"
+                    :class="property.required && (!settingsFormData[key] || settingsFormData[key] === '') ? 'border-red-500' : ''"
                     class="col-span-3 plugin-dialog-input"
                 />
 
@@ -532,6 +596,7 @@ const handleSubmit = (): void => {
               >
                 <Label :for="`env-${key}`" class="text-sm font-medium plugin-dialog-text">
                   {{ formatLabel(key) }}
+                  <span v-if="isEnvironmentRequired(key)" class="text-red-500">*</span>
                 </Label>
 
                 <Input
@@ -539,6 +604,8 @@ const handleSubmit = (): void => {
                     :id="`env-${key}`"
                     v-model="environmentFormData[key] as string"
                     :placeholder="`Enter ${formatLabel(key)}`"
+                    :required="isEnvironmentRequired(key)"
+                    :class="isEnvironmentRequired(key) && (!environmentFormData[key] || environmentFormData[key] === '') ? 'border-red-500' : ''"
                     class="text-sm plugin-dialog-input"
                 />
 
@@ -548,6 +615,7 @@ const handleSubmit = (): void => {
                     v-model.number="environmentFormData[key] as number"
                     type="number"
                     :placeholder="`Enter ${formatLabel(key)}`"
+                    :required="isEnvironmentRequired(key)"
                     class="text-sm plugin-dialog-input"
                 />
 
@@ -561,8 +629,8 @@ const handleSubmit = (): void => {
                   <Label :for="`env-${key}`" class="text-sm plugin-dialog-text">{{ formatLabel(key) }}</Label>
                 </div>
 
-                <p class="text-xs text-muted-foreground plugin-dialog-text">
-                  Current: <code class="bg-gray-100 px-1 rounded text-xs plugin-dialog-text">{{ String(value) }}</code>
+                <p v-if="isEnvironmentRequired(key)" class="text-xs text-red-600 plugin-dialog-text">
+                  This environment variable is required
                 </p>
               </div>
             </div>

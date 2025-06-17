@@ -15,12 +15,12 @@ import {
   XCircle
 } from "lucide-vue-next";
 
-// Define more specific types
 type PluginSettings = Record<string, unknown>;
-type PluginEnvironment = Record<string, unknown>;
+type PluginEnvironment = Record<string, string>;
 type PluginDependency = {
   name: string;
   version?: string;
+  registry?: string;
   [key: string]: unknown;
 };
 
@@ -66,10 +66,6 @@ const availableVersions = computed(() => {
     return registryPlugin.versions.map(v => v.version);
   }
 
-  if (selectedPlugin.value.versions) {
-    return selectedPlugin.value.versions.map(v => v.version);
-  }
-
   return [selectedPlugin.value.version];
 });
 
@@ -79,15 +75,14 @@ const pluginSettingsWithValues = computed(() => {
   }
 
   const registryPlugin = props.registryPlugins[selectedPlugin.value.name];
-  const settingsSchema = registryPlugin?.settings;
   const currentValues = selectedPlugin.value.settings;
   const currentEnvironment = selectedPlugin.value.environment;
 
   let settingsWithValues = undefined;
-  let environmentWithValues = undefined;
+  const environmentWithValues: Record<string, string> = {};
 
-  if (settingsSchema && settingsSchema.properties) {
-    settingsWithValues = JSON.parse(JSON.stringify(settingsSchema));
+  if (registryPlugin?.settings) {
+    settingsWithValues = JSON.parse(JSON.stringify(registryPlugin.settings));
 
     if (currentValues && settingsWithValues.properties) {
       Object.keys(settingsWithValues.properties).forEach(key => {
@@ -96,19 +91,33 @@ const pluginSettingsWithValues = computed(() => {
         }
       });
     }
-  } else {
-    settingsWithValues = settingsSchema;
   }
 
-  if (currentEnvironment && typeof currentEnvironment === 'object' && Object.keys(currentEnvironment).length > 0) {
-    environmentWithValues = { ...currentEnvironment };
-  } else {
-    environmentWithValues = undefined;
+  if (registryPlugin?.environment) {
+    Object.entries(registryPlugin.environment).forEach(([key, value]) => {
+      if (currentEnvironment && currentEnvironment[key] !== undefined) {
+        environmentWithValues[key] = String(currentEnvironment[key]);
+      } else if (value === true) {
+        environmentWithValues[key] = "";
+      } else if (typeof value === 'string') {
+        environmentWithValues[key] = value;
+      } else {
+        environmentWithValues[key] = "";
+      }
+    });
+  }
+
+  if (currentEnvironment) {
+    Object.entries(currentEnvironment).forEach(([key, value]) => {
+      if (!(key in (registryPlugin?.environment || {}))) {
+        environmentWithValues[key] = String(value);
+      }
+    });
   }
 
   return {
     settings: settingsWithValues,
-    environment: environmentWithValues
+    environment: Object.keys(environmentWithValues).length > 0 ? environmentWithValues : undefined
   };
 });
 
@@ -138,7 +147,12 @@ const handleTogglePlugin = (pluginName: string, enabled: boolean) => {
 const handleSettingsDialogSubmit = (settingsData?: PluginSettings, environmentData?: PluginEnvironment) => {
   if (!selectedPluginName.value) return;
 
-  emit("configure-plugin", selectedPluginName.value, true, settingsData, environmentData, selectedPlugin.value?.dependencies);
+  const processedEnvironment = environmentData ?
+      Object.fromEntries(
+          Object.entries(environmentData).map(([key, value]) => [key, String(value)])
+      ) : undefined;
+
+  emit("configure-plugin", selectedPluginName.value, true, settingsData, processedEnvironment, selectedPlugin.value?.dependencies);
 
   showSettingsDialog.value = false;
   selectedPluginName.value = null;
@@ -150,8 +164,7 @@ const handleDialogVersionChange = (version: string) => {
 };
 
 const getPluginStatus = (plugin: InstalledPlugin) => {
-  if (!plugin.enabled) return 'disabled';
-  return 'enabled';
+  return plugin.enabled ? 'enabled' : 'disabled';
 };
 
 const getStatusIcon = (plugin: InstalledPlugin) => {
@@ -160,6 +173,15 @@ const getStatusIcon = (plugin: InstalledPlugin) => {
 
 const getStatusColor = (plugin: InstalledPlugin) => {
   return plugin.enabled ? 'text-green-600' : 'text-red-600';
+};
+
+const getStatusBadgeVariant = (plugin: InstalledPlugin) => {
+  return plugin.enabled ? 'secondary' : 'destructive';
+};
+
+const hasConfiguration = (plugin: InstalledPlugin) => {
+  const registryPlugin = props.registryPlugins[plugin.name];
+  return !!(registryPlugin?.settings || registryPlugin?.environment || plugin.dependencies?.length);
 };
 </script>
 
@@ -182,6 +204,7 @@ const getStatusColor = (plugin: InstalledPlugin) => {
       </div>
 
       <div v-else class="space-y-4">
+        <!-- Active Plugins -->
         <div v-if="enabledPlugins.length > 0">
           <div class="flex items-center gap-2 mb-3">
             <CheckCircle class="h-4 w-4 text-green-600" />
@@ -192,7 +215,11 @@ const getStatusColor = (plugin: InstalledPlugin) => {
           </div>
 
           <div class="space-y-2">
-            <Card v-for="plugin in enabledPlugins" :key="plugin.name" class="border-green-200 dark:border-green-800">
+            <Card
+                v-for="plugin in enabledPlugins"
+                :key="plugin.name"
+                class="border-green-200 dark:border-green-800"
+            >
               <CardContent class="pt-4">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -204,10 +231,17 @@ const getStatusColor = (plugin: InstalledPlugin) => {
                       <h3 class="font-medium text-sm truncate">{{ plugin.name }}</h3>
                       <div class="flex items-center gap-2 mt-1">
                         <Badge variant="outline" class="text-xs h-5 px-2">
-                          {{ plugin.version }}
+                          v{{ plugin.version }}
                         </Badge>
-                        <Badge variant="secondary" class="text-xs h-5 px-2">
+                        <Badge :variant="getStatusBadgeVariant(plugin)" class="text-xs h-5 px-2">
                           {{ getPluginStatus(plugin) }}
+                        </Badge>
+                        <Badge
+                            v-if="plugin.dependencies?.length"
+                            variant="outline"
+                            class="text-xs h-5 px-2"
+                        >
+                          {{ plugin.dependencies.length }} deps
                         </Badge>
                       </div>
                     </div>
@@ -226,9 +260,11 @@ const getStatusColor = (plugin: InstalledPlugin) => {
 
                     <div class="flex items-center gap-2">
                       <Button
+                          v-if="hasConfiguration(plugin)"
                           size="sm"
                           variant="outline"
                           class="h-8 w-8 p-0"
+                          :title="`Configure ${plugin.name}`"
                           @click="handleConfigurePlugin(plugin.name)"
                       >
                         <Settings class="h-3 w-3" />
@@ -238,6 +274,7 @@ const getStatusColor = (plugin: InstalledPlugin) => {
                           size="sm"
                           variant="destructive"
                           class="h-8 w-8 p-0"
+                          :title="`Delete ${plugin.name}`"
                           @click="handleDeletePlugin(plugin.name)"
                       >
                         <Trash2 class="h-3 w-3" />
@@ -250,8 +287,10 @@ const getStatusColor = (plugin: InstalledPlugin) => {
           </div>
         </div>
 
+        <!-- Separator -->
         <Separator v-if="enabledPlugins.length > 0 && disabledPlugins.length > 0" />
 
+        <!-- Disabled Plugins -->
         <div v-if="disabledPlugins.length > 0">
           <div class="flex items-center gap-2 mb-3">
             <XCircle class="h-4 w-4 text-red-600" />
@@ -262,7 +301,11 @@ const getStatusColor = (plugin: InstalledPlugin) => {
           </div>
 
           <div class="space-y-2">
-            <Card v-for="plugin in disabledPlugins" :key="plugin.name" class="border-red-200 dark:border-red-800 opacity-60">
+            <Card
+                v-for="plugin in disabledPlugins"
+                :key="plugin.name"
+                class="border-red-200 dark:border-red-800 opacity-60"
+            >
               <CardContent class="pt-4">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -274,10 +317,17 @@ const getStatusColor = (plugin: InstalledPlugin) => {
                       <h3 class="font-medium text-sm truncate">{{ plugin.name }}</h3>
                       <div class="flex items-center gap-2 mt-1">
                         <Badge variant="outline" class="text-xs h-5 px-2">
-                          {{ plugin.version }}
+                          v{{ plugin.version }}
                         </Badge>
-                        <Badge variant="destructive" class="text-xs h-5 px-2">
-                          disabled
+                        <Badge :variant="getStatusBadgeVariant(plugin)" class="text-xs h-5 px-2">
+                          {{ getPluginStatus(plugin) }}
+                        </Badge>
+                        <Badge
+                            v-if="plugin.dependencies?.length"
+                            variant="outline"
+                            class="text-xs h-5 px-2"
+                        >
+                          {{ plugin.dependencies.length }} deps
                         </Badge>
                       </div>
                     </div>
@@ -296,9 +346,11 @@ const getStatusColor = (plugin: InstalledPlugin) => {
 
                     <div class="flex items-center gap-2">
                       <Button
+                          v-if="hasConfiguration(plugin)"
                           size="sm"
                           variant="outline"
                           class="h-8 w-8 p-0"
+                          :title="`Configure ${plugin.name}`"
                           @click="handleConfigurePlugin(plugin.name)"
                       >
                         <Settings class="h-3 w-3" />
@@ -308,6 +360,7 @@ const getStatusColor = (plugin: InstalledPlugin) => {
                           size="sm"
                           variant="destructive"
                           class="h-8 w-8 p-0"
+                          :title="`Delete ${plugin.name}`"
                           @click="handleDeletePlugin(plugin.name)"
                       >
                         <Trash2 class="h-3 w-3" />
@@ -323,6 +376,7 @@ const getStatusColor = (plugin: InstalledPlugin) => {
     </CardContent>
   </Card>
 
+  <!-- Settings Dialog -->
   <PluginSettingsDialog
       v-if="selectedPlugin && showSettingsDialog"
       v-model:open="showSettingsDialog"
