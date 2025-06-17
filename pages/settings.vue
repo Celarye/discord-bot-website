@@ -4,7 +4,7 @@ import SettingsBreadcrumb from "~/components/molecules/breadcrumbs/SettingsBread
 
 <template>
   <div>
-    <h2>Settings</h2>
+    <h2 class="text-2xl mb-2 font-semibold">Settings</h2>
     <SettingsBreadcrumb />
   </div>
 </template>
