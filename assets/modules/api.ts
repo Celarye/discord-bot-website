@@ -1,17 +1,22 @@
-import type { PluginRegistry, PluginSearchParams, PluginMetadata } from "~/assets/types/typelist";
+import type {
+  PluginMetadata,
+  PluginRegistry,
+  PluginSearchParams,
+} from "~/assets/types/typelist";
 
 // Configuration - change this URL to switch between local mock server and git repository
 const REGISTRY_CONFIG = {
   // For local development
   local: {
     baseUrl: "http://localhost:3001",
-    type: "local" as const
+    type: "local" as const,
   },
   // For git repository (example URLs - replace with actual repository URLs)
   git: {
-    baseUrl: "https://raw.githubusercontent.com/Celarye/discord-bot-plugins/refs/heads/master/",
-    type: "git" as const
-  }
+    baseUrl:
+      "https://raw.githubusercontent.com/Celarye/discord-bot-plugins/refs/heads/master/",
+    type: "git" as const,
+  },
 };
 
 interface VersionData {
@@ -67,36 +72,47 @@ interface ExtendedPluginMetadata extends PluginMetadata {
 /**
  * Get the latest version for a plugin from the registry
  */
-async function getLatestPluginVersion(pluginName: string): Promise<string | null> {
+async function getLatestPluginVersion(
+  pluginName: string,
+): Promise<string | null> {
   try {
     const registry = await fetchRegistry();
     const pluginData = registry.plugins[pluginName];
 
-    if (!pluginData || !pluginData.versions || !Array.isArray(pluginData.versions) || pluginData.versions.length === 0) {
+    if (
+      !pluginData ||
+      !pluginData.versions ||
+      !Array.isArray(pluginData.versions) ||
+      pluginData.versions.length === 0
+    ) {
       return null;
     }
 
     // Filter out deprecated versions
-    const availableVersions = pluginData.versions.filter((v: VersionData) => !v.deprecated);
+    const availableVersions = pluginData.versions.filter(
+      (v: VersionData) => !v.deprecated,
+    );
     if (availableVersions.length === 0) {
       return null;
     }
 
     // Sort versions to get the latest one (semantic version sorting)
-    const sortedVersions = availableVersions.sort((a :VersionData, b: VersionData) => {
-      const versionA = a.version.split('.').map(num => parseInt(num, 10));
-      const versionB = b.version.split('.').map(num => parseInt(num, 10));
+    const sortedVersions = availableVersions.sort(
+      (a: VersionData, b: VersionData) => {
+        const versionA = a.version.split(".").map((num) => parseInt(num, 10));
+        const versionB = b.version.split(".").map((num) => parseInt(num, 10));
 
-      for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
-        const numA = versionA[i] || 0;
-        const numB = versionB[i] || 0;
+        for (let i = 0; i < Math.max(versionA.length, versionB.length); i++) {
+          const numA = versionA[i] || 0;
+          const numB = versionB[i] || 0;
 
-        if (numA !== numB) {
-          return numA - numB;
+          if (numA !== numB) {
+            return numA - numB;
+          }
         }
-      }
-      return 0;
-    });
+        return 0;
+      },
+    );
 
     // Get the latest (highest) version
     const latestVersion = sortedVersions[sortedVersions.length - 1];
@@ -110,7 +126,9 @@ async function getLatestPluginVersion(pluginName: string): Promise<string | null
 /**
  * Fetch plugin metadata from individual metadata file
  */
-async function fetchPluginMetadata(pluginName: string): Promise<PluginMetadata> {
+async function fetchPluginMetadata(
+  pluginName: string,
+): Promise<PluginMetadata> {
   try {
     const config = getCurrentConfig();
 
@@ -118,7 +136,9 @@ async function fetchPluginMetadata(pluginName: string): Promise<PluginMetadata> 
       const url = `${config.baseUrl}${pluginName}/metadata.json`;
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Failed to fetch metadata for ${pluginName}: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch metadata for ${pluginName}: ${response.statusText}`,
+        );
       }
       return await response.json();
     } else {
@@ -131,7 +151,9 @@ async function fetchPluginMetadata(pluginName: string): Promise<PluginMetadata> 
       const url = `${config.baseUrl}${pluginName}/${latestVersion}/metadata.json`;
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Failed to fetch metadata for ${pluginName} v${latestVersion}: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch metadata for ${pluginName} v${latestVersion}: ${response.statusText}`,
+        );
       }
       return await response.json();
     }
@@ -147,7 +169,8 @@ async function fetchPluginMetadata(pluginName: string): Promise<PluginMetadata> 
 export async function fetchRegistry(): Promise<PluginRegistry> {
   try {
     const config = getCurrentConfig();
-    const url = config.type === "local"
+    const url =
+      config.type === "local"
         ? `${config.baseUrl}/plugins.json`
         : `${config.baseUrl}plugins.json`;
 
@@ -158,7 +181,9 @@ export async function fetchRegistry(): Promise<PluginRegistry> {
     return await response.json();
   } catch (error) {
     console.error("Error fetching registry:", error);
-    throw new Error(`Failed to load plugin registry: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to load plugin registry: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 }
 
@@ -179,8 +204,11 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
           name: pluginName,
           description: pluginData.description || metadata.description,
           versions: pluginData.versions || [],
-          deprecated: pluginData.deprecated || metadata["plugin-deprecated"] || false,
-          deprecatedReason: pluginData["deprecated-reason"] || metadata["plugin-deprecation-reason"],
+          deprecated:
+            pluginData.deprecated || metadata["plugin-deprecated"] || false,
+          deprecatedReason:
+            pluginData["deprecated-reason"] ||
+            metadata["plugin-deprecation-reason"],
           updateTime: pluginData["update-time"] || metadata["update-time"],
           // add metadata fields
           authors: metadata.authors || [],
@@ -192,12 +220,15 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
           // Use extended metadata with proper typing
           environment: extendedMetadata.environment,
           settings: extendedMetadata.settings,
-          dependencies: extendedMetadata.dependencies || []
+          dependencies: extendedMetadata.dependencies || [],
         };
 
         plugins.push(plugin);
       } catch (metadataError) {
-        console.warn(`Failed to fetch metadata for ${pluginName}, using registry data only:`, metadataError);
+        console.warn(
+          `Failed to fetch metadata for ${pluginName}, using registry data only:`,
+          metadataError,
+        );
 
         // fallback to registry data only
         const plugin: RegistryPlugin = {
@@ -213,7 +244,7 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
           // Set undefined for missing fields in fallback
           environment: undefined,
           settings: undefined,
-          dependencies: []
+          dependencies: [],
         };
 
         plugins.push(plugin);
@@ -227,7 +258,9 @@ export async function fetchAvailable(): Promise<{ plugins: RegistryPlugin[] }> {
   }
 }
 
-export async function fetchPluginDetails(pluginName: string): Promise<RegistryPlugin> {
+export async function fetchPluginDetails(
+  pluginName: string,
+): Promise<RegistryPlugin> {
   try {
     const config = getCurrentConfig();
 
@@ -237,7 +270,9 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
         if (response.status === 404) {
           throw new Error(`Plugin '${pluginName}' not found`);
         }
-        throw new Error(`Failed to fetch plugin details: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch plugin details: ${response.statusText}`,
+        );
       }
 
       const pluginData = await response.json();
@@ -257,7 +292,7 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
           // Use extended metadata with proper typing
           environment: extendedMetadata.environment,
           settings: extendedMetadata.settings,
-          dependencies: extendedMetadata.dependencies || []
+          dependencies: extendedMetadata.dependencies || [],
         };
       } catch {
         return {
@@ -268,7 +303,7 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
           // Set undefined for missing fields in fallback
           environment: undefined,
           settings: undefined,
-          dependencies: []
+          dependencies: [],
         };
       }
     } else {
@@ -286,8 +321,11 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
         name: pluginName,
         description: pluginData.description || metadata.description,
         versions: pluginData.versions || [],
-        deprecated: pluginData.deprecated || metadata["plugin-deprecated"] || false,
-        deprecatedReason: pluginData["deprecated-reason"] || metadata["plugin-deprecation-reason"],
+        deprecated:
+          pluginData.deprecated || metadata["plugin-deprecated"] || false,
+        deprecatedReason:
+          pluginData["deprecated-reason"] ||
+          metadata["plugin-deprecation-reason"],
         updateTime: pluginData["update-time"] || metadata["update-time"],
         authors: metadata.authors || [],
         license: metadata.license || "Unknown",
@@ -298,7 +336,7 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
         // Use extended metadata with proper typing
         environment: extendedMetadata.environment,
         settings: extendedMetadata.settings,
-        dependencies: extendedMetadata.dependencies || []
+        dependencies: extendedMetadata.dependencies || [],
       };
     }
   } catch (error) {
@@ -310,16 +348,20 @@ export async function fetchPluginDetails(pluginName: string): Promise<RegistryPl
 /**
  * Search plugins in the registry
  */
-export async function searchPlugins(params: PluginSearchParams): Promise<{ count: number; plugins: RegistryPlugin[] }> {
+export async function searchPlugins(
+  params: PluginSearchParams,
+): Promise<{ count: number; plugins: RegistryPlugin[] }> {
   try {
     const config = getCurrentConfig();
 
     if (config.type === "local") {
       const searchParams = new URLSearchParams();
-      if (params.tag) searchParams.append('tag', params.tag);
-      if (params.query) searchParams.append('query', params.query);
+      if (params.tag) searchParams.append("tag", params.tag);
+      if (params.query) searchParams.append("query", params.query);
 
-      const response = await fetch(`${config.baseUrl}/registry/search?${searchParams}`);
+      const response = await fetch(
+        `${config.baseUrl}/registry/search?${searchParams}`,
+      );
       if (!response.ok) {
         throw new Error(`Search failed: ${response.statusText}`); // Fixed: was missing 'throw'
       }
@@ -343,7 +385,7 @@ export async function searchPlugins(params: PluginSearchParams): Promise<{ count
             // Use extended metadata with proper typing
             environment: extendedMetadata.environment,
             settings: extendedMetadata.settings,
-            dependencies: extendedMetadata.dependencies || []
+            dependencies: extendedMetadata.dependencies || [],
           });
         } catch {
           enhancedPlugins.push({
@@ -353,37 +395,38 @@ export async function searchPlugins(params: PluginSearchParams): Promise<{ count
             tags: plugin.tags || [],
             environment: undefined,
             settings: undefined,
-            dependencies: []
+            dependencies: [],
           });
         }
       }
 
       return {
         count: enhancedPlugins.length,
-        plugins: enhancedPlugins
+        plugins: enhancedPlugins,
       };
     } else {
       const { plugins } = await fetchAvailable();
       let filteredPlugins = plugins;
 
       if (params.tag) {
-        filteredPlugins = filteredPlugins.filter(plugin =>
-            plugin.tags?.includes(params.tag!)
+        filteredPlugins = filteredPlugins.filter((plugin) =>
+          plugin.tags?.includes(params.tag!),
         );
       }
 
       if (params.query) {
         const searchQuery = params.query.toLowerCase();
-        filteredPlugins = filteredPlugins.filter(plugin =>
+        filteredPlugins = filteredPlugins.filter(
+          (plugin) =>
             plugin.name.toLowerCase().includes(searchQuery) ||
             plugin.description.toLowerCase().includes(searchQuery) ||
-            plugin.tags?.some(tag => tag.toLowerCase().includes(searchQuery))
+            plugin.tags?.some((tag) => tag.toLowerCase().includes(searchQuery)),
         );
       }
 
       return {
         count: filteredPlugins.length,
-        plugins: filteredPlugins
+        plugins: filteredPlugins,
       };
     }
   } catch (error) {
@@ -400,8 +443,8 @@ export async function fetchTags(): Promise<string[]> {
     const { plugins } = await fetchAvailable();
     const allTags = new Set<string>();
 
-    plugins.forEach(plugin => {
-      plugin.tags?.forEach(tag => allTags.add(tag));
+    plugins.forEach((plugin) => {
+      plugin.tags?.forEach((tag) => allTags.add(tag));
     });
 
     return Array.from(allTags).sort();

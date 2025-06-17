@@ -1,43 +1,50 @@
 {
-  "name": "nuxt-app",
+  "name": "discord-bot-website",
+  "description": "The website to control and monitor the discord bot.",
   "private": true,
   "type": "module",
   "scripts": {
+    "vue-tsc": "vue-tsc --project tsconfig.json --noEmit",
+    "lint": "eslint --fix --cache --cache-location 'node_modules/.cache/eslint/.eslint-cache'",
+    "lint:check": "eslint --cache --cache-location 'node_modules/.cache/eslint/.eslint-cache'",
+    "format": "prettier --write '**/*{.md,.yml,.yaml,.json,.js,.ts,.vue}' --cache",
+    "format:check": "prettier --check '**/*{.md,.yml,.yaml,.json,.js,.ts,.vue}' --cache",
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "test": "pnpm run vue-tsc && pnpm run lint:check && pnpm run format:check && pnpm run build",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "pinia": "^3.0.3",
+    "nuxt": "^3.16.2",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
+    "@iconify-json/radix-icons": "^1.2.2",
+    "@iconify/vue": "^4.3.0",
     "@internationalized/date": "^3.8.2",
     "@nuxt/eslint": "1.3.0",
+    "@nuxtjs/color-mode": "^3.5.2",
     "@pinia/nuxt": "^0.11.1",
     "@tailwindcss/vite": "^4.1.4",
     "@vueuse/core": "^13.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint": "^9.25.1",
-    "js-yaml": "^4.1.0",
     "lucide-vue-next": "^0.503.0",
-    "nuxt": "^3.16.2",
-    "pinia": "^3.0.3",
+    "prettier": "^3.5.3",
     "reka-ui": "^2.2.0",
     "shadcn-nuxt": "2.1.0",
     "tailwind-merge": "^3.2.0",
     "tailwindcss": "^4.1.4",
     "tw-animate-css": "^1.2.8",
-    "vue": "^3.5.13",
-    "vue-router": "^4.5.0",
+    "typescript": "^5.8.3",
+    "vue-tsc": "^2.2.10",
     "yaml": "^2.8.0"
   },
-  "packageManager": "pnpm@10.9.0+sha512.0486e394640d3c1fb3c9d43d49cf92879ff74f8516959c235308f5a8f62e2e19528a65cdc2a3058f587cde71eba3d5b56327c8c33a97e4c4051ca48a10ca2d5f",
-  "devDependencies": {
-    "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
-    "@iconify-json/radix-icons": "^1.2.2",
-    "@iconify/vue": "^4.3.0",
-    "@nuxtjs/color-mode": "^3.5.2",
-    "prettier": "^3.5.3",
-    "typescript": "^5.8.3"
-  }
+  "packageManager": "pnpm@10.9.0+sha512.0486e394640d3c1fb3c9d43d49cf92879ff74f8516959c235308f5a8f62e2e19528a65cdc2a3058f587cde71eba3d5b56327c8c33a97e4c4051ca48a10ca2d5f"
 }

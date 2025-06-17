@@ -10,7 +10,7 @@ const props = defineProps({
 });
 
 const formattedCount = computed(() =>
-  props.count.toLocaleString("en-US").replace(/,/g, " ")
+  props.count.toLocaleString("en-US").replace(/,/g, " "),
 );
 </script>
 

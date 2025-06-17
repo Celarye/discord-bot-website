@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { Button } from "@/components/ui/button";
 import { Power, PowerOff, RotateCw } from "lucide-vue-next";
+import { computed } from "vue";
 
 const props = defineProps<{
   online: boolean;

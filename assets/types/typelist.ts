@@ -86,7 +86,6 @@ export interface PluginSearchParams {
   query?: string;
 }
 
-
 export interface FilterValues {
   searchQuery?: string;
   logLevels: {
@@ -123,4 +122,3 @@ export interface InstalledPlugin {
   repository?: string;
   tags?: string[];
 }
-

@@ -20,7 +20,12 @@ const enabledText = computed(() => {
         <p class="font-medium">{{ name }}</p>
         <Badge variant="secondary" class="text-xs">v{{ version }}</Badge>
       </div>
-    <p :class="props.enabled ? 'bg-green-500' : 'bg-red-500'" class="rounded-lg p-2 border-2">{{ enabledText }}</p>
+      <p
+        :class="props.enabled ? 'bg-green-500' : 'bg-red-500'"
+        class="rounded-lg p-2 border-2"
+      >
+        {{ enabledText }}
+      </p>
     </CardContent>
   </Card>
 </template>

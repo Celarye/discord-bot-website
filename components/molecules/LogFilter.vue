@@ -15,7 +15,7 @@ import {
   type DateValue,
 } from "@internationalized/date";
 import { CalendarIcon, Search } from "lucide-vue-next";
-import { ref, watch, nextTick } from "vue";
+import { nextTick, ref, watch } from "vue";
 
 const df = new DateFormatter("en-US", {
   dateStyle: "long",
@@ -42,7 +42,7 @@ watch(
   }),
   () => {
     if (isUpdatingFromParent) return; // Prevent recursive updates
-    
+
     emit("update:modelValue", {
       ...localFilter.value,
       date: localFilter.value.date as DateValue | undefined,
