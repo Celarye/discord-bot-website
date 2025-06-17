@@ -3,9 +3,11 @@ import type { FilterValues, Log } from "~/assets/types/typelist";
 import LogFilter from "~/components/molecules/LogFilter.vue";
 import LogList from "~/components/molecules/LogList.vue";
 import { useLogsStore } from "~/stores/logs";
-import { computed, ref, watch } from "vue";
+import { getLocalTimeZone, today, type DateValue } from "@internationalized/date";
 
 const logsStore = useLogsStore();
+
+const currentDate: DateValue = today(getLocalTimeZone());
 
 const filter = ref<FilterValues>({
   searchQuery: "",
@@ -16,7 +18,7 @@ const filter = ref<FilterValues>({
     debug: true,
     trace: false,
   },
-  date: undefined,
+  date: currentDate,
 });
 
 const loadedDates = new Set<string>();
@@ -85,6 +87,14 @@ const handleSearch = (searchQuery: string) => {
 <template>
   <div class="space-y-6 mx-auto">
     <LogFilter v-model="filter" @search="handleSearch" />
-    <LogList :logs="filteredLogs" />
+    <div v-if="!filter.date" class="text-center text-gray-500 py-8">
+      Please select a date to view logs.
+    </div>
+    <div v-else>
+      <div v-if="filteredLogs.length === 0" class="text-center text-gray-500 py-8">
+        No logs found for the selected filters.
+      </div>
+      <LogList v-else :logs="filteredLogs" />
+    </div>
   </div>
 </template>
