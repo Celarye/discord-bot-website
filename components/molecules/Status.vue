@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import BotStatus from "@/components/atoms/BotStatus.vue";
 import PowerButton from "@/components/atoms/PowerButton.vue";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 defineProps<{
   botStatus: boolean;
@@ -21,12 +28,19 @@ function handleRestart() {
 </script>
 
 <template>
-  <div class="flex items-center justify-around gap-4">
-    <BotStatus :online="botStatus" />
-    <PowerButton
-      :online="botStatus"
-      @power="handlePowerChange"
-      @restart="handleRestart"
-    />
-  </div>
+  <Card class="w-full mx-auto min-w-[217px]">
+    <CardHeader>
+      <CardTitle>Bot Status</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <BotStatus :online="botStatus" />
+    </CardContent>
+    <CardFooter>
+      <PowerButton
+        :online="botStatus"
+        @power="handlePowerChange"
+        @restart="handleRestart"
+      />
+    </CardFooter>
+  </Card>
 </template>
