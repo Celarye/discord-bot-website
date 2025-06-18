@@ -22,5 +22,6 @@ node_modules
 .env
 .env.*
 !.env.example
-plugins.yaml
+
 config.yaml
+/plugins
