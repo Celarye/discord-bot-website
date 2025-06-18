@@ -476,6 +476,7 @@ export default defineEventHandler(async (event) => {
 
       if ('dependencies' in updates) {
         if (updates.dependencies === undefined || updates.dependencies === null) {
+          console.log('undefined')
         } else if (Array.isArray(updates.dependencies) && updates.dependencies.length > 0) {
           updatedPluginData.dependencies = updates.dependencies;
         }
