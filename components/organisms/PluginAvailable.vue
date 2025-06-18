@@ -173,7 +173,7 @@ const pluginStats = computed(() => {
               v-model="showDeprecated"
               type="checkbox"
               class="rounded border-gray-300"
-            />
+            >
             <label
               for="show-deprecated"
               class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

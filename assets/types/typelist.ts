@@ -5,6 +5,14 @@ export interface Plugintype {
   version: string;
 }
 
+export interface AvailablePlugins {
+  name: string;
+  versions: string[];
+  description: string;
+}
+
+// ~/assets/types/typelist.ts
+
 export interface PluginVersion {
   version: string;
   "compatible-bot-version": number;
