@@ -4,52 +4,85 @@ import HandledRequestsCounter from "@/components/atoms/HandledRequestsCounter.vu
 import Status from "@/components/molecules/Status.vue";
 import DashboardPluginList from "../molecules/DashboardPluginList.vue";
 
-// Status
+// Initialize as false first
 const botStatus = ref(false);
 
+// Then check the status
+fetch("http://localhost:8080/")
+  .then(() => {
+    botStatus.value = true;
+  })
+  .catch(() => {
+    botStatus.value = false;
+  });
+
 function toggleBotStatus(newStatus: boolean) {
+  if (newStatus) {
+    fetch("/api/dashboard/start")
+      .then()
+      .catch(() => (newStatus = false));
+  } else {
+    fetch("http://localhost:8080/stop");
+  }
   botStatus.value = newStatus;
 }
 
 function restartBot() {
-  console.log("Restarting bot...");
+  fetch("http://localhost:8080/restart");
 
   botStatus.value = false;
   setTimeout(() => {
     botStatus.value = true;
-    console.log("Bot restarted.");
-  }, 1000);
+    fetch("http://localhost:8080/").then(() => (botStatus.value = true));
+  }, 3000);
 }
 
 // Count
-const count = ref(123456789);
+const count = ref(0);
+fetch("http://localhost:8080/handled-requests")
+  .then((r) => r.text()) // Parse as text first
+  .then((text) => {
+    count.value = parseInt(text, 10); // Convert string to number
+  })
+  .catch(() => {
+    count.value = 0;
+  });
 
-// Configured plugins
 const plugins = ref<Plugintype[]>([]);
 const error = ref<string | null>(null);
 
 onMounted(async () => {
   try {
     const response = await fetch("/api/plugins/config");
-
     if (!response.ok) {
-      throw new Error(`Failed to load config: ${response.statusText}`);
+      throw new Error(`Failed to load plugin list: ${response.statusText}`);
     }
 
     const yaml = await import("js-yaml");
     const content = await response.text();
     const parsed = yaml.load(content);
 
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      Array.isArray((parsed as any).plugins)
-    ) {
-      plugins.value = (parsed as any).plugins;
+    if (parsed && typeof parsed === "object" && "plugins" in parsed) {
+      const pluginsObj = (parsed as any).plugins;
+
+      // Transform the object structure to array of Plugintype
+      if (pluginsObj && typeof pluginsObj === "object") {
+        plugins.value = Object.entries(pluginsObj).map(
+          ([name, config]: [string, any]) => ({
+            name,
+            version: config?.version || "unknown",
+          }),
+        );
+      } else {
+        plugins.value = [];
+      }
+    } else {
+      plugins.value = [];
     }
   } catch (err: any) {
     console.error("Error loading configured plugins:", err);
     error.value = "Failed to load configured plugins.";
+    plugins.value = [];
   }
 });
 </script>

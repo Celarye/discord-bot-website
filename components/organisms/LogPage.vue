@@ -51,33 +51,22 @@ const logs = computed<Log[]>(() => {
 });
 
 const filteredLogs = computed(() => {
-  return logs.value.filter((log) => {
-    if (!filter.value.logLevels[log.type]) return false;
-
-    if (
-      filter.value.searchQuery?.trim() &&
-      !log.message
-        .toLowerCase()
-        .includes(filter.value.searchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-
-    if (filter.value.date) {
-      const logDate = new Date(log.timestamp);
-      const filterDate = filter.value.date.toDate("UTC");
+  return logs.value
+    .filter((log) => {
+      if (!filter.value.logLevels[log.type]) return false;
 
       if (
-        logDate.getUTCFullYear() !== filterDate.getFullYear() ||
-        logDate.getUTCMonth() !== filterDate.getMonth() ||
-        logDate.getUTCDate() !== filterDate.getDate()
+        filter.value.searchQuery?.trim() &&
+        !log.message
+          .toLowerCase()
+          .includes(filter.value.searchQuery.toLowerCase())
       ) {
         return false;
       }
-    }
 
-    return true;
-  });
+      return true;
+    })
+    .reverse();
 });
 
 const handleSearch = (searchQuery: string) => {

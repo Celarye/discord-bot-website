@@ -10,10 +10,8 @@ export const useLogsStore = defineStore("logs", () => {
     loading.value = true;
     error.value = null;
     try {
-      const data = await $fetch<string>(`/api/logs/${date}`);
-      console.log("Raw log file:", data);
+      const data = await $fetch<string>(`http://localhost:8080/logs/${date}`);
       const lines = data.split("\n").filter((line) => line.trim() !== "");
-      console.log("Log lines:", lines);
       const parsedLogs = lines
         .map(parseLogLine)
         .filter((log): log is Log => log !== null);
