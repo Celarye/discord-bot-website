@@ -34,7 +34,6 @@ watch(
         :key="plugin.name"
         :name="plugin.name"
         :version="plugin.version"
-        :enabled="plugin.enabled"
       />
     </div>
   </PluginListContainer>

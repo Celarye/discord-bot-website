@@ -1,26 +1,26 @@
 <script setup lang="ts">
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { checkRegistryHealth, fetchAvailable } from "~/assets/modules/api";
-import type { InstalledPlugin, RegistryPlugin } from "~/assets/types/typelist";
+import { fetchAvailable, checkRegistryHealth } from "~/assets/modules/api";
+import type { RegistryPlugin, InstalledPlugin } from "~/assets/types/typelist";
 import PluginAvailable from "~/components/organisms/PluginAvailable.vue";
 import PluginInstalled from "~/components/organisms/PluginInstalled.vue";
+import { onMounted, ref, computed } from "vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import {
+  Loader2,
+  Download,
+  Save,
+  RefreshCw,
   AlertTriangle,
   CheckCircle,
-  Download,
-  Loader2,
-  RefreshCw,
-  Save,
-  WifiOff,
+  WifiOff
 } from "lucide-vue-next";
-import { computed, onMounted, ref } from "vue";
 
 interface PluginConfig {
-  plugins: Record<string, Omit<InstalledPlugin, "name">>;
+  plugins: Record<string, Omit<InstalledPlugin, 'name'>>;
   metadata?: {
     lastUpdated: string;
     version: string;
@@ -38,13 +38,14 @@ interface PluginEnvironment {
 interface PluginDependency {
   name: string;
   version?: string;
+  registry?: string;
   [key: string]: unknown;
 }
 
 const fileContent = ref<string | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const hasFileSelected = ref<boolean>(false);
-const plugins = ref<Record<string, Omit<InstalledPlugin, "name">>>({});
+const plugins = ref<Record<string, Omit<InstalledPlugin, 'name'>>>({});
 const availablePlugins = ref<RegistryPlugin[]>([]);
 const selectedVersions = ref<{ [key: string]: string }>({});
 const isLoading = ref<boolean>(true);
@@ -56,7 +57,7 @@ const installedPluginNames = computed(() => Object.keys(plugins.value));
 
 const registryPluginsMap = computed(() => {
   const map: Record<string, RegistryPlugin> = {};
-  availablePlugins.value.forEach((plugin) => {
+  availablePlugins.value.forEach(plugin => {
     map[plugin.name] = plugin;
   });
   return map;
@@ -81,9 +82,8 @@ async function initializePluginManager() {
 
       availablePlugins.value.forEach((plugin) => {
         if (plugin.versions && plugin.versions.length > 0) {
-          const nonDeprecated = plugin.versions.filter((v) => !v.deprecated);
-          const latestVersion =
-            nonDeprecated.length > 0
+          const nonDeprecated = plugin.versions.filter(v => !v.deprecated);
+          const latestVersion = nonDeprecated.length > 0
               ? nonDeprecated[nonDeprecated.length - 1]
               : plugin.versions[plugin.versions.length - 1];
 
@@ -93,16 +93,12 @@ async function initializePluginManager() {
 
       lastSync.value = new Date().toISOString();
     } else {
-      error.value =
-        "Registry is offline. You can still manage installed plugins.";
+      error.value = "Registry is offline. You can still manage installed plugins.";
     }
 
     await loadExistingConfig();
   } catch (err) {
-    error.value =
-      err instanceof Error
-        ? err.message
-        : "Failed to initialize plugin manager";
+    error.value = err instanceof Error ? err.message : "Failed to initialize plugin manager";
   } finally {
     isLoading.value = false;
   }
@@ -124,7 +120,7 @@ async function loadExistingConfig() {
 
     if (config && config.plugins) {
       if (Array.isArray(config.plugins)) {
-        const pluginsObject: Record<string, Omit<InstalledPlugin, "name">> = {};
+        const pluginsObject: Record<string, Omit<InstalledPlugin, 'name'>> = {};
         config.plugins.forEach((plugin: InstalledPlugin) => {
           if (plugin.name) {
             const { name, ...pluginData } = plugin;
@@ -141,48 +137,72 @@ async function loadExistingConfig() {
   }
 }
 
-// Parse YAML content to JavaScript object
 const parseYaml = (yamlContent: string): PluginConfig => {
-  // Simple YAML parser - you might want to use a proper YAML library like js-yaml
-  const lines = yamlContent.split("\n");
+  const lines = yamlContent.split('\n');
   const config: PluginConfig = { plugins: {} };
 
   let currentPlugin: string | null = null;
   let currentSection: string | null = null;
+  let currentSubSection: string | null = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (!trimmed || trimmed.startsWith('#')) continue;
 
     const indent = line.length - line.trimStart().length;
 
-    if (trimmed === "plugins:") {
-      currentSection = "plugins";
+    if (trimmed === 'plugins:') {
+      currentSection = 'plugins';
       continue;
     }
 
-    if (trimmed === "metadata:") {
-      currentSection = "metadata";
+    if (trimmed === 'metadata:') {
+      currentSection = 'metadata';
       continue;
     }
 
-    if (currentSection === "plugins" && indent === 2 && trimmed.endsWith(":")) {
+    if (currentSection === 'plugins' && indent === 2 && trimmed.endsWith(':')) {
       currentPlugin = trimmed.slice(0, -1);
-      config.plugins[currentPlugin] = { version: "", enabled: true };
+      config.plugins[currentPlugin] = { version: '', enabled: true };
       continue;
     }
 
     if (currentPlugin && indent === 4) {
-      const [key, ...valueParts] = trimmed.split(":");
-      const value = valueParts
-        .join(":")
-        .trim()
-        .replace(/^["']|["']$/g, "");
+      const [key, ...valueParts] = trimmed.split(':');
+      const value = valueParts.join(':').trim().replace(/^["']|["']$/g, '');
 
-      if (key === "version") {
+      if (key === 'version') {
         config.plugins[currentPlugin].version = value;
-      } else if (key === "enabled") {
-        config.plugins[currentPlugin].enabled = value === "true";
+      } else if (key === 'enabled') {
+        config.plugins[currentPlugin].enabled = value === 'true';
+      } else if (key === 'settings' && valueParts.join(':').trim() === '') {
+        config.plugins[currentPlugin].settings = {};
+        currentSubSection = 'settings';
+      } else if (key === 'environment' && valueParts.join(':').trim() === '') {
+        config.plugins[currentPlugin].environment = {};
+        currentSubSection = 'environment';
+      }
+    }
+
+    if (currentPlugin && currentSubSection && indent === 6) {
+      const [key, ...valueParts] = trimmed.split(':');
+      const value = valueParts.join(':').trim().replace(/^["']|["']$/g, '');
+
+      if (currentSubSection === 'settings') {
+        if (!config.plugins[currentPlugin].settings) {
+          config.plugins[currentPlugin].settings = {};
+        }
+        let parsedValue: string = value;
+        if (value === 'true') parsedValue = true;
+        else if (value === 'false') parsedValue = false;
+        else if (!isNaN(Number(value)) && value !== '') parsedValue = Number(value);
+
+        config.plugins[currentPlugin].settings![key] = parsedValue;
+      } else if (currentSubSection === 'environment') {
+        if (!config.plugins[currentPlugin].environment) {
+          config.plugins[currentPlugin].environment = {};
+        }
+        config.plugins[currentPlugin].environment![key] = value;
       }
     }
   }
@@ -207,28 +227,23 @@ const openFile = async (event: Event) => {
       let configData: PluginConfig;
 
       // Check file extension to determine format
-      const fileExtension = file.name.split(".").pop()?.toLowerCase();
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
       try {
-        if (fileExtension === "yaml" || fileExtension === "yml") {
+        if (fileExtension === 'yaml' || fileExtension === 'yml') {
           configData = parseYaml(content);
         } else {
           configData = JSON.parse(content);
         }
       } catch {
-        throw new Error(
-          `Invalid ${fileExtension?.toUpperCase() || "file"} format`,
-        );
+        throw new Error(`Invalid ${fileExtension?.toUpperCase() || 'file'} format`);
       }
 
       if (configData && configData.plugins) {
         fileContent.value = content;
 
         if (Array.isArray(configData.plugins)) {
-          const pluginsObject: Record<
-            string,
-            Omit<InstalledPlugin, "name">
-          > = {};
+          const pluginsObject: Record<string, Omit<InstalledPlugin, 'name'>> = {};
           configData.plugins.forEach((plugin: InstalledPlugin) => {
             if (plugin.name) {
               const { name, ...pluginData } = plugin;
@@ -245,7 +260,7 @@ const openFile = async (event: Event) => {
         throw new Error("Invalid configuration structure");
       }
     } catch (err) {
-      error.value = `Invalid configuration file: ${err instanceof Error ? err.message : "Unknown error"}`;
+      error.value = `Invalid configuration file: ${err instanceof Error ? err.message : 'Unknown error'}`;
       plugins.value = {};
     }
   };
@@ -255,13 +270,26 @@ const openFile = async (event: Event) => {
 
 const deletePlugin = async (pluginName: string) => {
   try {
-    const { [pluginName]: _, ...rest } = plugins.value;
-    plugins.value = rest;
+    const response = await fetch(`/api/plugins/config?name=${encodeURIComponent(pluginName)}`, {
+      method: "DELETE",
+    });
 
-    error.value = null;
-    await saveToServer();
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to delete plugin: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Reload configuration to reflect changes (including removed dependencies)
+      await loadExistingConfig();
+      error.value = null;
+    } else {
+      throw new Error(result.error || "Failed to delete plugin");
+    }
   } catch (err) {
-    error.value = `Failed to delete plugin: ${err instanceof Error ? err.message : "Unknown error"}`;
+    error.value = `Failed to delete plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 };
 
@@ -269,9 +297,10 @@ const togglePlugin = async (pluginName: string, enabled: boolean) => {
   try {
     if (!plugins.value[pluginName]) return;
 
+    // Optimistically update UI
     plugins.value[pluginName] = {
       ...plugins.value[pluginName],
-      enabled,
+      enabled
     };
 
     const response = await fetch("/api/plugins/config", {
@@ -281,26 +310,36 @@ const togglePlugin = async (pluginName: string, enabled: boolean) => {
       },
       body: JSON.stringify({
         pluginName: pluginName,
-        updates: { enabled },
+        updates: { enabled }
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to update plugin: ${response.statusText}`);
+      // Revert optimistic update on failure
+      plugins.value[pluginName].enabled = !enabled;
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to update plugin: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      // Revert optimistic update on failure
+      plugins.value[pluginName].enabled = !enabled;
+      throw new Error(result.error || "Failed to toggle plugin");
     }
 
     error.value = null;
   } catch (err) {
-    error.value = `Failed to toggle plugin: ${err instanceof Error ? err.message : "Unknown error"}`;
+    error.value = `Failed to toggle plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 };
 
 const configurePlugin = async (
-  pluginName: string,
-  withSettings?: boolean,
-  settings?: PluginSettings,
-  environment?: PluginEnvironment,
-  dependencies?: PluginDependency[],
+    pluginName: string,
+    withSettings?: boolean,
+    settings?: PluginSettings,
+    environment?: PluginEnvironment,
+    dependencies?: PluginDependency[]
 ) => {
   try {
     if (!plugins.value[pluginName]) {
@@ -309,16 +348,16 @@ const configurePlugin = async (
     }
 
     const updates: {
-      settings?: PluginSettings;
-      environment?: PluginEnvironment;
-      dependencies?: PluginDependency[];
+      settings?: PluginSettings | null;
+      environment?: PluginEnvironment | null;
+      dependencies?: PluginDependency[] | null;
     } = {};
 
     if (settings !== undefined) {
       if (settings && Object.keys(settings).length > 0) {
         updates.settings = settings;
       } else {
-        updates.settings = undefined;
+        updates.settings = null;
       }
     }
 
@@ -326,7 +365,7 @@ const configurePlugin = async (
       if (environment && Object.keys(environment).length > 0) {
         updates.environment = environment;
       } else {
-        updates.environment = undefined;
+        updates.environment = null;
       }
     }
 
@@ -334,7 +373,7 @@ const configurePlugin = async (
       if (dependencies && dependencies.length > 0) {
         updates.dependencies = dependencies;
       } else {
-        updates.dependencies = undefined;
+        updates.dependencies = null;
       }
     }
 
@@ -345,15 +384,13 @@ const configurePlugin = async (
       },
       body: JSON.stringify({
         pluginName: pluginName,
-        updates: updates,
+        updates: updates
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(
-        errorData.error || `Failed to update plugin: ${response.statusText}`,
-      );
+      throw new Error(errorData.error || `Failed to update plugin: ${response.statusText}`);
     }
 
     const result = await response.json();
@@ -370,34 +407,31 @@ const configurePlugin = async (
       throw new Error(result.error || "Unknown error occurred");
     }
   } catch (err) {
-    error.value = `Failed to configure plugin: ${err instanceof Error ? err.message : "Unknown error"}`;
+    error.value = `Failed to configure plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
     await loadExistingConfig();
   }
 };
 
 const addPlugin = async (
-  pluginName: string,
-  withSettings?: boolean,
-  settings?: PluginSettings,
-  environment?: PluginEnvironment,
-  dependencies?: PluginDependency[],
-  version?: string,
+    pluginName: string,
+    withSettings?: boolean,
+    settings?: PluginSettings,
+    environment?: PluginEnvironment,
+    dependencies?: PluginDependency[],
+    version?: string
 ) => {
   try {
-    const pluginInfo = availablePlugins.value.find(
-      (p) => p.name === pluginName,
-    );
+    const pluginInfo = availablePlugins.value.find((p) => p.name === pluginName);
     if (!pluginInfo) {
       error.value = `Plugin "${pluginName}" not found in registry`;
       return;
     }
 
-    const selectedVersion =
-      version ||
-      selectedVersions.value[pluginName] ||
-      (pluginInfo.versions && pluginInfo.versions.length > 0
-        ? pluginInfo.versions[pluginInfo.versions.length - 1].version
-        : "latest");
+    const selectedVersion = version ||
+        selectedVersions.value[pluginName] ||
+        (pluginInfo.versions && pluginInfo.versions.length > 0
+            ? pluginInfo.versions[pluginInfo.versions.length - 1].version
+            : "latest");
 
     if (plugins.value[pluginName]) {
       error.value = `Plugin "${pluginName}" is already installed`;
@@ -405,20 +439,15 @@ const addPlugin = async (
     }
 
     const requestBody = {
-      action: "add-plugin",
+      action: 'add-plugin',
       plugin: {
         name: pluginName,
         version: selectedVersion,
         enabled: true,
-        settings:
-          settings && Object.keys(settings).length > 0 ? settings : undefined,
-        environment:
-          environment && Object.keys(environment).length > 0
-            ? environment
-            : undefined,
-        dependencies:
-          dependencies && dependencies.length > 0 ? dependencies : undefined,
-      },
+        settings: settings && Object.keys(settings).length > 0 ? settings : undefined,
+        environment: environment && Object.keys(environment).length > 0 ? environment : undefined,
+        dependencies: dependencies && dependencies.length > 0 ? dependencies : undefined
+      }
     };
 
     const response = await fetch("/api/plugins/config", {
@@ -431,39 +460,31 @@ const addPlugin = async (
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(
-        errorData.error || `Failed to install plugin: ${response.statusText}`,
-      );
+      throw new Error(errorData.error || `Failed to install plugin: ${response.statusText}`);
     }
 
     const result = await response.json();
 
     if (result.success) {
-      // Only reload the config, not the entire registry
+      // Reload the config to get all installed plugins including dependencies
       await loadExistingConfig();
       error.value = null;
     } else {
       throw new Error(result.error || "Unknown error occurred");
     }
   } catch (err) {
-    error.value = `Failed to install plugin: ${err instanceof Error ? err.message : "Unknown error"}`;
+    error.value = `Failed to install plugin: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 };
 
 const handleConfigurePlugin = (
-  pluginName: string,
-  withSettings?: boolean,
-  settings?: PluginSettings,
-  environment?: PluginEnvironment,
-  dependencies?: PluginDependency[],
+    pluginName: string,
+    withSettings?: boolean,
+    settings?: PluginSettings,
+    environment?: PluginEnvironment,
+    dependencies?: PluginDependency[]
 ) => {
-  configurePlugin(
-    pluginName,
-    withSettings,
-    settings,
-    environment,
-    dependencies,
-  );
+  configurePlugin(pluginName, withSettings, settings, environment, dependencies);
 };
 
 const handleDeletePlugin = (pluginName: string) => {
@@ -481,11 +502,10 @@ const convertToYaml = (): string => {
       plugins: plugins.value,
       metadata: {
         lastUpdated: new Date().toISOString(),
-        version: "1.0.0",
-      },
+        version: "1.0.0"
+      }
     };
 
-    // Simple YAML conversion (you might want to use a proper YAML library like js-yaml)
     let yaml = "plugins:\n";
 
     Object.entries(config.plugins).forEach(([name, plugin]) => {
@@ -493,17 +513,17 @@ const convertToYaml = (): string => {
       yaml += `    version: "${plugin.version}"\n`;
       yaml += `    enabled: ${plugin.enabled}\n`;
 
-      if (plugin.settings && Object.keys(plugin.settings).length > 0) {
-        yaml += `    settings:\n`;
-        Object.entries(plugin.settings).forEach(([key, value]) => {
-          yaml += `      ${key}: ${typeof value === "string" ? `"${value}"` : value}\n`;
-        });
-      }
-
       if (plugin.environment && Object.keys(plugin.environment).length > 0) {
         yaml += `    environment:\n`;
         Object.entries(plugin.environment).forEach(([key, value]) => {
-          yaml += `      ${key}: ${typeof value === "string" ? `"${value}"` : value}\n`;
+          yaml += `      ${key}: ${typeof value === 'string' ? `"${value}"` : value}\n`;
+        });
+      }
+
+      if (plugin.settings && Object.keys(plugin.settings).length > 0) {
+        yaml += `    settings:\n`;
+        Object.entries(plugin.settings).forEach(([key, value]) => {
+          yaml += `      ${key}: ${typeof value === 'string' ? `"${value}"` : value}\n`;
         });
       }
 
@@ -513,6 +533,9 @@ const convertToYaml = (): string => {
           yaml += `      - name: "${dep.name}"\n`;
           if (dep.version) {
             yaml += `        version: "${dep.version}"\n`;
+          }
+          if (dep.registry) {
+            yaml += `        registry: "${dep.registry}"\n`;
           }
         });
       }
@@ -541,7 +564,7 @@ const saveFile = () => {
     link.click();
     URL.revokeObjectURL(link.href);
   } catch (err) {
-    error.value = `Failed to save file: ${err instanceof Error ? err.message : "Unknown error"}`;
+    error.value = `Failed to save file: ${err instanceof Error ? err.message : 'Unknown error'}`;
   }
 };
 
@@ -551,8 +574,8 @@ const saveToServer = async (): Promise<boolean> => {
       plugins: plugins.value,
       metadata: {
         lastUpdated: new Date().toISOString(),
-        version: "1.0.0",
-      },
+        version: "1.0.0"
+      }
     };
 
     const response = await fetch("/api/plugins/config", {
@@ -564,7 +587,8 @@ const saveToServer = async (): Promise<boolean> => {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to save configuration: ${response.statusText}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to save configuration: ${response.statusText}`);
     }
 
     const result = await response.json();
@@ -572,10 +596,10 @@ const saveToServer = async (): Promise<boolean> => {
       error.value = null;
       return true;
     } else {
-      throw new Error(result.message || "Unknown error");
+      throw new Error(result.error || "Unknown error");
     }
   } catch (err) {
-    error.value = `Failed to save configuration: ${err instanceof Error ? err.message : "Unknown error"}`;
+    error.value = `Failed to save configuration: ${err instanceof Error ? err.message : 'Unknown error'}`;
     return false;
   }
 };
@@ -603,28 +627,26 @@ const refreshRegistry = async () => {
           <Alert v-if="!isRegistryOnline" variant="destructive">
             <WifiOff class="h-4 w-4" />
             <AlertDescription>
-              Registry is offline. Available plugins cannot be loaded, but you
-              can still manage installed plugins.
+              Registry is offline. Available plugins cannot be loaded, but you can still manage installed plugins.
             </AlertDescription>
           </Alert>
 
           <Alert
-            v-else-if="lastSync"
-            variant="default"
-            class="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20"
+              v-else-if="lastSync"
+              variant="default"
+              class="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20"
           >
             <CheckCircle class="h-4 w-4 text-green-600 dark:text-green-400" />
             <AlertDescription class="text-green-800 dark:text-green-200">
-              Registry synced successfully. Last update:
-              {{ new Date(lastSync).toLocaleString() }}
+              Registry synced successfully. Last update: {{ new Date(lastSync).toLocaleString() }}
             </AlertDescription>
           </Alert>
 
           <Button
-            variant="outline"
-            :disabled="isLoading"
-            class="shrink-0"
-            @click="refreshRegistry"
+              variant="outline"
+              :disabled="isLoading"
+              class="shrink-0"
+              @click="refreshRegistry"
           >
             <RefreshCw class="h-4 w-4" />
           </Button>
@@ -635,16 +657,16 @@ const refreshRegistry = async () => {
           <div class="flex gap-2">
             <div class="relative flex-1">
               <Input
-                ref="fileInput"
-                type="file"
-                accept=".json, .yaml, .yml"
-                :class="[
-                  'transition-all duration-200',
-                  hasFileSelected
-                    ? 'file:hidden text-sm'
-                    : 'file:mr-4 file:py-2 file:px-4  file:text-sm file:font-semibold ',
-                ]"
-                @change="openFile"
+                  ref="fileInput"
+                  type="file"
+                  accept=".json, .yaml, .yml"
+                  :class="[
+                    'transition-all duration-200',
+                    hasFileSelected
+                      ? 'file:hidden text-sm'
+                      : 'file:mr-4 file:py-2 file:px-4  file:text-sm file:font-semibold '
+                  ]"
+                  @change="openFile"
               />
             </div>
           </div>
@@ -660,18 +682,15 @@ const refreshRegistry = async () => {
               </div>
 
               <PluginInstalled
-                :plugins="plugins"
-                :registry-plugins="registryPluginsMap"
-                @delete-plugin="handleDeletePlugin"
-                @toggle-plugin="togglePlugin"
-                @configure-plugin="handleConfigurePlugin"
+                  :plugins="plugins"
+                  :registry-plugins="registryPluginsMap"
+                  @delete-plugin="handleDeletePlugin"
+                  @toggle-plugin="togglePlugin"
+                  @configure-plugin="handleConfigurePlugin"
               />
             </div>
 
-            <div
-              v-if="installedPluginsCount > 0"
-              class="mt-6 flex flex-wrap gap-2"
-            >
+            <div v-if="installedPluginsCount > 0" class="mt-6 flex flex-wrap gap-2">
               <Button class="flex items-center gap-2" @click="saveFile">
                 <Download class="h-4 w-4" />
                 Download YAML
@@ -685,21 +704,19 @@ const refreshRegistry = async () => {
 
           <div>
             <PluginAvailable
-              v-if="isRegistryOnline"
-              :available-plugins="availablePlugins"
-              :selected-versions="selectedVersions"
-              :installed-plugins="installedPluginNames"
-              @add-plugin="addPlugin"
-              @update-version="updateSelectedVersion"
+                v-if="isRegistryOnline"
+                :available-plugins="availablePlugins"
+                :selected-versions="selectedVersions"
+                :installed-plugins="installedPluginNames"
+                @add-plugin="addPlugin"
+                @update-version="updateSelectedVersion"
             />
 
             <Card v-else class="opacity-60">
               <CardContent class="p-6 text-center">
                 <WifiOff class="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p class="font-medium">Registry Offline</p>
-                <p class="text-sm text-muted-foreground">
-                  Cannot load available plugins
-                </p>
+                <p class="text-sm text-muted-foreground">Cannot load available plugins</p>
               </CardContent>
             </Card>
           </div>
@@ -708,3 +725,4 @@ const refreshRegistry = async () => {
     </div>
   </div>
 </template>
+
