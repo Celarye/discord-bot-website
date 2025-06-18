@@ -137,9 +137,7 @@ async function loadExistingConfig() {
   }
 }
 
-// Parse YAML content to JavaScript object
 const parseYaml = (yamlContent: string): PluginConfig => {
-  // Simple YAML parser - you might want to use a proper YAML library like js-yaml
   const lines = yamlContent.split('\n');
   const config: PluginConfig = { plugins: {} };
 
@@ -194,7 +192,6 @@ const parseYaml = (yamlContent: string): PluginConfig => {
         if (!config.plugins[currentPlugin].settings) {
           config.plugins[currentPlugin].settings = {};
         }
-        // Parse value based on type
         let parsedValue: string = value;
         if (value === 'true') parsedValue = true;
         else if (value === 'false') parsedValue = false;

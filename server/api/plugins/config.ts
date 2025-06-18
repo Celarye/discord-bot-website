@@ -476,7 +476,6 @@ export default defineEventHandler(async (event) => {
 
       if ('dependencies' in updates) {
         if (updates.dependencies === undefined || updates.dependencies === null) {
-          // Dependencies will be omitted from updatedPluginData
         } else if (Array.isArray(updates.dependencies) && updates.dependencies.length > 0) {
           updatedPluginData.dependencies = updates.dependencies;
         }
@@ -538,10 +537,8 @@ export default defineEventHandler(async (event) => {
 
       const originalCount = Object.keys(config.plugins).length;
 
-      // Create new plugins object without the target plugin
       const { [pluginName]: removedPlugin, ...remainingPlugins } = config.plugins;
 
-      // Find and remove dependent plugins
       const pluginsToKeep: Record<string, Omit<InstalledPlugin, 'name'>> = {};
 
       for (const [key, plugin] of Object.entries(remainingPlugins)) {

@@ -53,7 +53,6 @@ const selectedTag = ref<string>("");
 const showDeprecated = ref(false);
 
 watch(() => props.availablePlugins, () => {
-  // Watch for plugin updates if needed
 }, { immediate: true });
 
 const filteredPlugins = computed(() => {

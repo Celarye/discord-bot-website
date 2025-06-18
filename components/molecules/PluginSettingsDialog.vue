@@ -553,7 +553,7 @@ const handleSubmit = (): void => {
                     v-model="settingsFormData[key] as boolean"
                     type="checkbox"
                     class="rounded border-gray-300"
-                  >
+                  />
                   <Label :for="key" class="text-sm plugin-dialog-text">{{
                     property.description || formatLabel(key)
                   }}</Label>
@@ -707,14 +707,13 @@ const handleSubmit = (): void => {
                     v-model="environmentFormData[key] as boolean"
                     type="checkbox"
                     class="rounded border-gray-300"
-                  >
+                  />
                   <Label
                     :for="`env-${key}`"
                     class="text-sm plugin-dialog-text"
                     >{{ formatLabel(key) }}</Label
                   >
                 </div>
-
 
               </div>
             </div>
