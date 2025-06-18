@@ -6,11 +6,13 @@ import Hamburger from "../molecules/Hamburger.vue";
 </script>
 
 <template>
-  <nav class="backdrop-blur bg-background/95 outline fixed top-0 w-full supports-[backdrop-filter]:bg-background/60">
+  <nav
+    class="backdrop-blur bg-background/95 outline fixed top-0 w-full supports-[backdrop-filter]:bg-background/60"
+  >
     <div
       class="flex flex-row items-center align-middle justify-between p-3 h-15 container m-auto"
     >
-      <h1 class="text-xl align-middle">Discord&nbsp;Bot</h1>
+      <h1 class="text-xl align-middle font-bold">Discord&nbsp;Bot</h1>
       <section class="flex flex-row gap-4">
         <Command />
         <div class="md:hidden"><Hamburger /></div>

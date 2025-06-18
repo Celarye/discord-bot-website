@@ -1,4 +1,5 @@
 <script setup lang="ts">
+<<<<<<< configuration-with-registry
 import { computed, ref, watch } from "vue";
 import type { RegistryPlugin } from "~/assets/types/typelist";
 import { Input } from "@/components/ui/input";
@@ -15,13 +16,35 @@ interface PluginSettings {
 
 interface PluginEnvironment {
   [key: string]: string;
+=======
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import type { RegistryPlugin } from "~/assets/types/typelist";
+import PluginAvailableCard from "~/components/molecules/PluginAvailableCard.vue";
+import { Download, Search } from "lucide-vue-next";
+import { computed, ref, watch } from "vue";
+
+// Define proper types for plugin-related data
+interface PluginSettings {
+  [key: string]: string | number | boolean | object;
+}
+
+interface PluginEnvironment {
+  [key: string]: string | number | boolean;
+>>>>>>> master
 }
 
 interface PluginDependency {
   name: string;
   version?: string;
+<<<<<<< configuration-with-registry
   registry?: string;
   [key: string]: unknown;
+=======
+  optional?: boolean;
+>>>>>>> master
 }
 
 interface Props {
@@ -33,6 +56,7 @@ interface Props {
 
 interface Emits {
   (
+<<<<<<< configuration-with-registry
       e: "add-plugin",
       pluginName: string,
       withSettings?: boolean,
@@ -40,6 +64,15 @@ interface Emits {
       environment?: PluginEnvironment,
       dependencies?: PluginDependency[],
       version?: string
+=======
+    e: "add-plugin",
+    pluginName: string,
+    withSettings?: boolean,
+    settings?: PluginSettings,
+    environment?: PluginEnvironment,
+    dependencies?: PluginDependency[],
+    version?: string,
+>>>>>>> master
   ): void;
   (e: "update-version", pluginName: string, version: string): void;
   (e: "refresh-plugins"): void;
@@ -47,6 +80,7 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+<<<<<<< configuration-with-registry
 
 const searchQuery = ref("");
 const selectedTag = ref<string>("");
@@ -101,16 +135,85 @@ const addPlugin = (
 
 const updateVersion = (pluginName: string, version: string): void => {
   emit("update-version", pluginName, version);
+=======
+
+const searchQuery = ref("");
+const selectedTag = ref<string>("");
+const showDeprecated = ref(false);
+
+watch(
+  () => props.availablePlugins,
+  () => {
+    // Watch for plugin updates if needed
+  },
+  { immediate: true },
+);
+
+const filteredPlugins = computed(() => {
+  return props.availablePlugins.filter((plugin) => {
+    const matchesSearch =
+      !searchQuery.value ||
+      plugin.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      plugin.description
+        .toLowerCase()
+        .includes(searchQuery.value.toLowerCase()) ||
+      plugin.tags?.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.value.toLowerCase()),
+      ) ||
+      plugin.authors?.some((author) =>
+        author.toLowerCase().includes(searchQuery.value.toLowerCase()),
+      );
+
+    const matchesTag =
+      !selectedTag.value || plugin.tags?.includes(selectedTag.value);
+
+    const matchesDeprecation = showDeprecated.value || !plugin.deprecated;
+
+    return matchesSearch && matchesTag && matchesDeprecation;
+  });
+});
+
+const isPluginInstalled = (pluginName: string) => {
+  return props.installedPlugins?.includes(pluginName) || false;
+};
+
+const handleRefresh = () => {
+  emit("refresh-plugins");
+};
+
+const addPlugin = (
+  pluginName: string,
+  withSettings?: boolean,
+  settings?: PluginSettings,
+  environment?: PluginEnvironment,
+  dependencies?: PluginDependency[],
+  version?: string,
+) => {
+  emit(
+    "add-plugin",
+    pluginName,
+    withSettings,
+    settings,
+    environment,
+    dependencies,
+    version,
+  );
+>>>>>>> master
 };
 
 const pluginStats = computed(() => {
   const total = props.availablePlugins.length;
+<<<<<<< configuration-with-registry
   const deprecated = props.availablePlugins.filter(p => p.deprecated || p['plugin-deprecated']).length;
+=======
+  const deprecated = props.availablePlugins.filter((p) => p.deprecated).length;
+>>>>>>> master
   const installed = props.installedPlugins?.length || 0;
   const filtered = filteredPlugins.value.length;
 
   return { total, deprecated, installed, filtered };
 });
+<<<<<<< configuration-with-registry
 
 // Get all unique tags from plugins
 const availableTags = computed(() => {
@@ -122,6 +225,8 @@ const availableTags = computed(() => {
   });
   return Array.from(tags).sort();
 });
+=======
+>>>>>>> master
 </script>
 
 <template>
@@ -137,12 +242,24 @@ const availableTags = computed(() => {
             {{ pluginStats.filtered }}/{{ pluginStats.total }}
           </Badge>
           <button
+<<<<<<< configuration-with-registry
               :disabled="props.loading"
               class="p-1 hover:bg-gray-100 rounded"
               title="Refresh plugins"
               @click="handleRefresh"
           >
             <Search class="h-4 w-4" :class="{ 'animate-spin': props.loading }" />
+=======
+            :disabled="props.loading"
+            class="p-1 hover:bg-gray-100 rounded"
+            title="Refresh plugins"
+            @click="handleRefresh"
+          >
+            <Search
+              class="h-4 w-4"
+              :class="{ 'animate-spin': props.loading }"
+            />
+>>>>>>> master
           </button>
         </div>
       </div>
@@ -157,6 +274,7 @@ const availableTags = computed(() => {
     <CardContent class="space-y-4">
       <div class="space-y-3">
         <div class="relative">
+<<<<<<< configuration-with-registry
           <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
               v-model="searchQuery"
@@ -176,10 +294,34 @@ const availableTags = computed(() => {
             <label
                 for="show-deprecated"
                 class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+=======
+          <Search
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
+          />
+          <Input
+            v-model="searchQuery"
+            placeholder="Search plugins by name, description, tags, or authors..."
+            class="pl-10"
+          />
+        </div>
+
+        <div class="flex gap-2">
+          <div class="flex items-center space-x-2">
+            <input
+              id="show-deprecated"
+              v-model="showDeprecated"
+              type="checkbox"
+              class="rounded border-gray-300"
+            />
+            <label
+              for="show-deprecated"
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+>>>>>>> master
             >
               Show deprecated
             </label>
           </div>
+<<<<<<< configuration-with-registry
 
           <select
               v-if="availableTags.length > 0"
@@ -191,6 +333,8 @@ const availableTags = computed(() => {
               {{ tag }}
             </option>
           </select>
+=======
+>>>>>>> master
         </div>
       </div>
 
@@ -202,13 +346,21 @@ const availableTags = computed(() => {
       </div>
 
       <div v-else class="space-y-4 max-h-96 overflow-y-auto">
+<<<<<<< configuration-with-registry
         <div v-if="filteredPlugins.length === 0" class="text-center py-8 text-muted-foreground">
+=======
+        <div
+          v-if="filteredPlugins.length === 0"
+          class="text-center py-8 text-muted-foreground"
+        >
+>>>>>>> master
           <Search class="h-12 w-12 mx-auto mb-2 opacity-50" />
           <p>No plugins found</p>
           <p class="text-sm">Try adjusting your search or filter criteria</p>
         </div>
 
         <PluginAvailableCard
+<<<<<<< configuration-with-registry
             v-for="plugin in filteredPlugins"
             :key="plugin.name"
             :plugin="plugin"
@@ -216,8 +368,23 @@ const availableTags = computed(() => {
             :is-installed="isPluginInstalled(plugin.name)"
             @add-plugin="addPlugin"
             @update-version="updateVersion"
+=======
+          v-for="plugin in filteredPlugins"
+          :key="plugin.name"
+          :plugin="plugin"
+          :selected-version="selectedVersions[plugin.name]"
+          :is-installed="isPluginInstalled(plugin.name)"
+          @add-plugin="addPlugin"
+          @update-version="
+            (pluginName, version) => emit('update-version', pluginName, version)
+          "
+>>>>>>> master
         />
       </div>
     </CardContent>
   </Card>
+<<<<<<< configuration-with-registry
 </template>
+=======
+</template>
+>>>>>>> master
